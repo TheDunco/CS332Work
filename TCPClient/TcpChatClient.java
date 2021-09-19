@@ -104,7 +104,7 @@ public class TcpChatClient {
             this.socket = new Socket(host, port);
             if (this.verbose) Util.println("TCP connected");
 
-            // Initialize in and out to read from and write to the socket
+            // Initialize printstream to write to socket
             this.socketWriter = new PrintStream( socket.getOutputStream() );
 
             // Initialize a scanner to grab input from the user
