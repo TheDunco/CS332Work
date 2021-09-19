@@ -38,13 +38,11 @@ public class TcpChatClient {
         parseArgsAndRunClient(args);
     }
     
-    public static void displayUsageMessageAndExit() {
-        Util.print(
+    public static void displayUsageErrorMessage() {
+        Util.fault(
             "Usage: java TcpChatClient --server <host> -- port <port>\n" +
             "Also supported are --verbose, --name <dispaly name>\n"
         );
-        
-        System.exit(0);
     }
     
     
@@ -85,13 +83,12 @@ public class TcpChatClient {
                 }
             }
             catch(Exception e) {
-                displayUsageMessageAndExit();
+                displayUsageErrorMessage();
             }
         }
         
         // create chat client and run it
-        TcpChatClient client = new TcpChatClient(host, port, verbose, displayName);
-        client.run();
+        new TcpChatClient(host, port, verbose, displayName).run();
     }
 
     public TcpChatClient(String host, int port, Boolean verbose, String displayName) {
@@ -112,16 +109,13 @@ public class TcpChatClient {
             this.userInput = new Scanner(System.in);
         } 
         catch(java.net.ConnectException ce) {
-            Util.println("Could not connect to server!");
-            System.exit(0);
+            Util.fault("Could not connect to server!");
         }
         catch(IOException ioe) {
-            Util.println("Socket or IO error!");
-            System.exit(0);
+            Util.fault("Socket or IO error!");
         }
         catch(Exception e) {
-            Util.println("Unknown error!");
-            System.exit(0);
+            Util.fault("Unknown error!");
         }
     }
 
@@ -186,7 +180,7 @@ public class TcpChatClient {
 // https://www.codejava.net/java-se/networking/how-to-create-a-chat-console-application-in-java-using-socket
 class ServerListener extends Thread {
     private TcpChatClient client;
-    public BufferedReader socketReader;
+    private BufferedReader socketReader;
     
     public ServerListener(TcpChatClient client, Socket socket) {
         this.client = client;
@@ -207,9 +201,9 @@ class ServerListener extends Thread {
                 String serverMsg = this.readMessagesFromServer();
                 if (this.client.verbose) Util.println("Message recieved...");
                 
+                // null message (repeatedly) means we got disconnected from server
                 if (serverMsg == null) {
-                    Util.println("Server connection closed!");
-                    System.exit(0);
+                    Util.fault("Server connection closed!");
                 }
                 
                 Util.println(serverMsg);
@@ -249,13 +243,19 @@ class ServerListener extends Thread {
 
 // utility print functions to save my fingers and improve readability
 class Util {
-    static void println(String message) {
+    public static void println(String message) {
         System.out.println(message);
         System.out.flush();
     }
 
-    static void print(String message) {
+    public static void print(String message) {
         System.out.print(message);
         System.out.flush();
-    }    
+    }
+    
+    public static void fault(String message) {
+        System.err.println(message);
+        System.err.flush();
+        System.exit(0);
+    }
 }
