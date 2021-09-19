@@ -31,10 +31,10 @@ public class TcpChatClient {
     Scanner userInput;
     ServerListener myListener;
     
-    Boolean verbose = false;
-    String displayName = "Anon";
-    String host = "localhost";
-    Integer port = 12345;
+    Boolean verbose;
+    String displayName;
+    String host;
+    Integer port;
     
     public static void main (String[] args) {
         parseArgsAndRunClient(args);
