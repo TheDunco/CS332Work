@@ -1,12 +1,12 @@
 /*
-Duncan Van Keulen
-9/20/2021
-Advanced Computer Networking
-Homework 1: TCP Chat Client
-
-Derived from the examples listed and the CS232 Operating Systems Ceasar Cipher client/server
-
-Usage: java TcpChatClient.java --server <server> --port <port> --name <display name>
+* Duncan Van Keulen
+* 9/20/2021
+* Advanced Computer Networking
+* Homework 1: TCP Chat Client
+* 
+* Derived from the examples listed and the CS232 Operating Systems Ceasar Cipher client/server
+* 
+* Usage: java TcpChatClient.java --server <server = localhost> --port <port = 12345> --name <display name>
 */
 
 import java.io.BufferedReader;
@@ -17,60 +17,49 @@ import java.net.Socket;
 import java.util.Scanner;
 
 /*
-Initial Ceasar Cipher code based on these two examples...
-https://www.infoworld.com/article/2853780/socket-programming-for-scalable-systems.html
-https://docs.oracle.com/javase/tutorial/networking/sockets/readingWriting.html
-
-
+* Initial Ceasar Cipher code based on these two examples...
+* https://www.infoworld.com/article/2853780/socket-programming-for-scalable-systems.html
+* https://docs.oracle.com/javase/tutorial/networking/sockets/readingWriting.html
 */
 
 public class TcpChatClient {
 
     Socket socket;
     PrintStream socketWriter;
-    public BufferedReader socketReader;
     Scanner userInput;
     
     Boolean verbose = false;
-    String displayName = "";
-    String host = "";
-    Integer port = 0;
+    String displayName = "Anon";
+    String host = "localhost";
+    Integer port = 12345;
+    
+    public static void main (String[] args) {
+        
+        // we should have at least port number and host name
+        // if (args.length >= 2) {
+        parseArgsAndRunClient(args);
+        // }
+        // else {
+        //     displayUsageMessageAndExit();
+        // }
+    }
     
     public static void displayUsageMessageAndExit() {
-        print(
+        Util.print(
             "Usage: java TcpChatClient --server <host> -- port <port>\n" +
-            "Also supported are --verbose, --name <dispaly name>"
+            "Also supported are --verbose, --name <dispaly name>\n"
         );
         
         System.exit(0);
     }
     
-    // utility print functions to save my fingers and improve readability
-    public static void println(String message) {
-        System.out.println(message);
-    }
-    
-    public static void print(String message) {
-        System.out.print(message);
-    }
-    
-    public static void main (String[] args) {
-        
-        // we should have at least port number and host name
-        if (args.length >= 2) {
-            parseArgsAndRunClient(args);
-        }
-        else {
-            displayUsageMessageAndExit();
-        }
-    }
     
     private static void parseArgsAndRunClient(String[] args) {
         // init local variables to be passed into TcpChatClient constructor
         Boolean verbose = false;
-        String displayName = "";
-        String host = "";
-        Integer port = 0;
+        String displayName = "Anon";
+        String host = "localhost";
+        Integer port = 12345;
         
     
         // run through all args and parse out what we need to
@@ -91,6 +80,7 @@ public class TcpChatClient {
                     case "--port":
                     case "-p":
                         port = Integer.parseInt(args[i+1]);
+                        break;
                         
                     case "--name":
                     case "-n":
@@ -113,35 +103,43 @@ public class TcpChatClient {
 
     public TcpChatClient(String host, int port, Boolean verbose, String displayName) {
         try {
-
-            if(verbose) println("Host: " + host + "\nPort: " + port);
+            this.verbose = verbose;
+            this.displayName = displayName;
+            
+            if(this.verbose) Util.println("Host: " + host + "\nPort: " + port);
             
             // Initialize socket
             this.socket = new Socket(host, port);
-            if (verbose) println("TCP connected");
+            if (this.verbose) Util.println("TCP connected");
 
             // Initialize in and out to read from and write to the socket
             this.socketWriter = new PrintStream( socket.getOutputStream() );
-            this.socketReader = new BufferedReader( new InputStreamReader( socket.getInputStream() ));
 
             // Initialize a scanner to grab input from the user
             this.userInput = new Scanner(System.in);
         } 
+        catch(java.net.ConnectException ce) {
+            Util.println("Could not connect to server!");
+            System.exit(0);
+        }
+        catch(IOException ioe) {
+            Util.println("Socket error!");
+            System.exit(0);
+        }
         catch(Exception e) {
-            e.printStackTrace();
+            Util.println("Unknown error!");
+            System.exit(0);
         }
     }
 
     public void run() {
         try {
-            println("Welcome to the Chat Client!\n");
             
-            if (this.displayName == "") 
-                displayName = this.getDisplayName();
+            Util.println("Welcome, " + displayName + ", to the Chat Client!\n");
                 
             this.listenToServer();
             
-            this.loopUntilQuit();
+            this.readAndSendUntilQuit();
     
             this.closeAll();
 
@@ -152,41 +150,36 @@ public class TcpChatClient {
             e.printStackTrace();
         }
     }
-    
-    private String getDisplayName() {
-        print("Please enter your username: ");
-        return this.userInput.nextLine();
-    }
 
-    private void loopUntilQuit() {
+    private void readAndSendUntilQuit() {
         
         String message = "";
 
         while(true) {
             // get input from user
-            print("Message: ");
             message = this.userInput.nextLine();
 
             if(message.equals(".")) { break; }
 
+            if(this.verbose) Util.println("Sending message...");
             // send message to server
-            socketWriter.println(message);
+            socketWriter.println("<" + this.displayName + "> says: " + message);
         } 
 
         return;
     }
     
     private void listenToServer() {
-        Thread myListener = new ServerListener(this);
-        // needed to be cast to ServerListener instead of Thread
-        ((TcpChatClient.ServerListener) myListener).listen();
+        ServerListener myListener = new ServerListener(this, this.socket);
+        myListener.start();
+        // // needed to be cast to ServerListener instead of Thread
+        // ((TcpChatClient.ServerListener) myListener).start();
     }
     
     // Close all open sockets/readers/writers to avoid leaks
     private void closeAll() {
         try {
             this.userInput.close();
-            this.socketReader.close();
             this.socketWriter.close();
             this.socket.close();
         }
@@ -195,39 +188,74 @@ public class TcpChatClient {
             e.printStackTrace();
         }
     }
+}
+
+class ServerListener extends Thread {
+    private TcpChatClient client;
+    public BufferedReader socketReader;
     
-    private class ServerListener extends Thread {
-        private TcpChatClient client;
+    public ServerListener(TcpChatClient client, Socket socket) {
+        this.client = client;
         
-        public ServerListener(TcpChatClient client) {
-            this.client = client;
+        try {
+            this.socketReader = new BufferedReader( new InputStreamReader( socket.getInputStream() ));
         }
-        
-        public void listen() {
-            while (true) {
-                try {
-                    println(readMessagesFromServer());
-                }
-                catch (Exception e) {
-                    if(client.verbose) e.printStackTrace();
-                }
-            }
+        catch (IOException ioe) {
+            if (client.verbose) Util.println("Error getting socket input stream");
         }
-        
-        private String readMessagesFromServer() {
-            try {
-                // read response from server
-                String rsp = client.socketReader.readLine();
-                return rsp;
-            }
-            catch (IOException e) { 
-                // e.printStackTrace(); 
-                // response = "error";
-                // will get stackoverflow if truly broken
-                readMessagesFromServer();
-            }
-            return "";
-        }
-        
     }
+    
+    @Override
+    public void run() {
+        while (true) {
+            try {
+                // read message from server
+                String serverMsg = this.readMessagesFromServer();
+                if (this.client.verbose) Util.println("Message recieved...");
+                
+                Util.println(serverMsg);
+            }
+            catch (Exception e) {
+                if(this.client.verbose) e.printStackTrace();
+            }
+        }
+    }
+    
+    private String readMessagesFromServer() {
+        try {
+            // read response from server
+            String rsp = this.socketReader.readLine();
+            return rsp;
+        }
+        catch (IOException e) { 
+            // e.printStackTrace(); 
+            // response = "error";
+            // will get stackoverflow if truly broken
+            if (this.client.verbose) Util.println("Error reading messages from server");
+            readMessagesFromServer();
+        }
+        return "";
+    }
+    
+    public void close() {
+        try {
+            this.socketReader.close();
+        }
+        catch (IOException ioe) {
+            if (client.verbose) Util.println("Error closing socket");
+        }
+    }
+}
+
+// utility print functions to save my fingers and improve readability
+class Util {
+    static void println(String message) {
+        System.out.println(message);
+        System.out.flush();
+    }
+
+    static void print(String message) {
+        System.out.print(message);
+        System.out.flush();
+    }    
 }
