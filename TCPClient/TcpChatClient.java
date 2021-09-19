@@ -4,7 +4,9 @@
 * Advanced Computer Networking
 * Homework 1: TCP Chat Client
 * 
-* Derived from the examples listed and the CS232 Operating Systems Ceasar Cipher client/server
+* Implements a well-known chat client style that listens to a server and sends messages to it
+*
+* Derived from the documented examples and my CS232 Operating Systems Ceasar Cipher client/server from last year
 * 
 * Usage: java TcpChatClient.java --server <server = localhost> --port <port = 12345> --name <display name = Anon>
 */
@@ -135,7 +137,7 @@ public class TcpChatClient {
             System.exit(0);
         }
         catch (Exception e) {
-            e.printStackTrace();
+            Util.fault("Error running program");
         }
     }
 
@@ -171,7 +173,7 @@ public class TcpChatClient {
             this.myListener.close();
         }
         catch (Exception e) {
-            System.out.println("Closing failed");
+            Util.fault("Closing failed");
         }
     }
 }
@@ -189,7 +191,7 @@ class ServerListener extends Thread {
             this.socketReader = new BufferedReader( new InputStreamReader( socket.getInputStream() ));
         }
         catch (IOException ioe) {
-            if (client.verbose) Util.println("Error getting socket input stream");
+            Util.fault("Error getting socket input stream");
         }
     }
     
@@ -209,7 +211,7 @@ class ServerListener extends Thread {
                 Util.println(serverMsg);
             }
             catch (Exception e) {
-                if(this.client.verbose) e.printStackTrace();
+                Util.fault("Error reading messages from server");
             }
         }
     }
@@ -221,13 +223,9 @@ class ServerListener extends Thread {
             return rsp;
         }
         catch (IOException e) { 
-            // e.printStackTrace(); 
-            // response = "error";
-            // will get stackoverflow if truly broken
-            if (this.client.verbose) Util.println("Error reading messages from server");
-            readMessagesFromServer();
+            Util.fault("Error reading messages from server");
         }
-        return "";
+        return ""; // to appease java
     }
     
     public void close() {
@@ -236,7 +234,7 @@ class ServerListener extends Thread {
             this.close();
         }
         catch (IOException ioe) {
-            if (client.verbose) Util.println("Error closing socket");
+            Util.fault("Error closing socket");
         }
     }
 }
