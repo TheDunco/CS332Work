@@ -6,7 +6,7 @@
 * 
 * Derived from the examples listed and the CS232 Operating Systems Ceasar Cipher client/server
 * 
-* Usage: java TcpChatClient.java --server <server = localhost> --port <port = 12345> --name <display name>
+* Usage: java TcpChatClient.java --server <server = localhost> --port <port = 12345> --name <display name = Anon>
 */
 
 import java.io.BufferedReader;
@@ -27,6 +27,7 @@ public class TcpChatClient {
     Socket socket;
     PrintStream socketWriter;
     Scanner userInput;
+    ServerListener myListener;
     
     Boolean verbose = false;
     String displayName = "Anon";
@@ -34,14 +35,7 @@ public class TcpChatClient {
     Integer port = 12345;
     
     public static void main (String[] args) {
-        
-        // we should have at least port number and host name
-        // if (args.length >= 2) {
         parseArgsAndRunClient(args);
-        // }
-        // else {
-        //     displayUsageMessageAndExit();
-        // }
     }
     
     public static void displayUsageMessageAndExit() {
@@ -60,7 +54,6 @@ public class TcpChatClient {
         String displayName = "Anon";
         String host = "localhost";
         Integer port = 12345;
-        
     
         // run through all args and parse out what we need to
         // there are libraries out there for this but I didn't want to have to use them.
@@ -123,7 +116,7 @@ public class TcpChatClient {
             System.exit(0);
         }
         catch(IOException ioe) {
-            Util.println("Socket error!");
+            Util.println("Socket or IO error!");
             System.exit(0);
         }
         catch(Exception e) {
@@ -132,14 +125,15 @@ public class TcpChatClient {
         }
     }
 
+    // this is basically the "main" method of the chat client class
     public void run() {
         try {
             
             Util.println("Welcome, " + displayName + ", to the Chat Client!\n");
                 
-            this.listenToServer();
+            this.startListeningToServer();
             
-            this.readAndSendUntilQuit();
+            this.readInAndSendUntilQuit();
     
             this.closeAll();
 
@@ -151,7 +145,7 @@ public class TcpChatClient {
         }
     }
 
-    private void readAndSendUntilQuit() {
+    private void readInAndSendUntilQuit() {
         
         String message = "";
 
@@ -169,11 +163,9 @@ public class TcpChatClient {
         return;
     }
     
-    private void listenToServer() {
-        ServerListener myListener = new ServerListener(this, this.socket);
-        myListener.start();
-        // // needed to be cast to ServerListener instead of Thread
-        // ((TcpChatClient.ServerListener) myListener).start();
+    private void startListeningToServer() {
+        this.myListener = new ServerListener(this, this.socket);
+        this.myListener.start();
     }
     
     // Close all open sockets/readers/writers to avoid leaks
@@ -182,14 +174,16 @@ public class TcpChatClient {
             this.userInput.close();
             this.socketWriter.close();
             this.socket.close();
+            this.myListener.close();
         }
         catch (Exception e) {
             System.out.println("Closing failed");
-            e.printStackTrace();
         }
     }
 }
 
+// This example was useful in figuring out how to start a new thread and that I needed to in the first place
+// https://www.codejava.net/java-se/networking/how-to-create-a-chat-console-application-in-java-using-socket
 class ServerListener extends Thread {
     private TcpChatClient client;
     public BufferedReader socketReader;
@@ -212,6 +206,11 @@ class ServerListener extends Thread {
                 // read message from server
                 String serverMsg = this.readMessagesFromServer();
                 if (this.client.verbose) Util.println("Message recieved...");
+                
+                if (serverMsg == null) {
+                    Util.println("Server connection closed!");
+                    System.exit(0);
+                }
                 
                 Util.println(serverMsg);
             }
@@ -240,6 +239,7 @@ class ServerListener extends Thread {
     public void close() {
         try {
             this.socketReader.close();
+            this.close();
         }
         catch (IOException ioe) {
             if (client.verbose) Util.println("Error closing socket");
