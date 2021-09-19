@@ -113,6 +113,9 @@ public class TcpChatClient {
         catch(java.net.ConnectException ce) {
             Util.fault("Could not connect to server!");
         }
+        catch(java.net.UnknownHostException ukh) {
+            Util.fault("Unknown host!");
+        }
         catch(IOException ioe) {
             Util.fault("Socket or IO error!");
         }
