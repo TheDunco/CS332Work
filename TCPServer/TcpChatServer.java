@@ -19,40 +19,44 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 /*
 Based heavily on this example...
 https://www.infoworld.com/article/2853780/socket-programming-for-scalable-systems.html
 */
 
-// utility print functions to save my fingers and improve readability
-class Util {
-    public static void println(String message) {
-        System.out.println(message);
-        System.out.flush();
-    }
-
-    public static void print(String message) {
-        System.out.print(message);
-        System.out.flush();
-    }
-    
-    public static void fault(String message) {
-        System.err.println(message);
-        System.err.flush();
-        System.exit(0);
-    }
-}
-
-
 public class TcpChatServer extends Thread {
     private ServerSocket serverSocket;
-    private int port = 12345;
+    public int port = 12345;
     private boolean running = false;
-    private boolean verbose = false;
+    public boolean verbose = false;
+    
+    public List<ClientConnectionHandler> handlers;
 
-    public TcpChatServer(int port) {
-        this.port = port;
+    public TcpChatServer(String[] args) {
+        // run through all args and parse out what we need to
+        for (int i = 0; i < args.length; i++) {
+            try {
+                switch (args[i]) {
+                    case "--verbose":
+                    case "-v":
+                        verbose = true;
+                        break;
+                    
+                    case "--port":
+                    case "-p":
+                        this.port = Integer.parseInt(args[i+1]);
+                        break;
+                        
+                    default:
+                        break;
+                }
+            }
+            catch(Exception e) {
+                displayUsageErrorMessage();
+            }
+        }
     }
 
     public void startServer() {
@@ -78,52 +82,72 @@ public class TcpChatServer extends Thread {
         running = false;
         this.interrupt();
     }
+    
+    public static void displayUsageErrorMessage() {
+        Util.fault(
+            "Usage: java TcpChatServer --port <port>\n" +
+            "Also supported is --verbose\n"
+        );
+    }
 
     @Override
     public void run() {
-
         // Continually wait for new connections and spawn a request handler thread for every new connection
         this.running = true;
         while(this.running)
         {
             try
             {
-                System.out.println("Listening for a connection");
+                if (this.verbose) Util.println("Listening for a connection");
 
                 // Call accept() to receive the next connection
                 Socket socket = serverSocket.accept();
-
-                // Pass the socket to the RequestHandler thread for processing
-                RequestHandler requestHandler = new RequestHandler(socket);
-                requestHandler.start();
                 
-                // TODO: Add socket to socks; the list of sockets
+                if (this.verbose) Util.println("Got connection at port " + socket.getPort());
+                
+                // Pass the socket to the RequestHandler thread for processing
+                ClientConnectionHandler requestHandler = new ClientConnectionHandler(socket, this);
+                
+                // add this new request handler to our list
+                this.handlers.add(requestHandler);
+                
+                // start processing
+                requestHandler.start();
             }
             catch (IOException e)
             {
-                Util.fault("Error listening for new connections");
+                Util.fault("Error listening for or getting new connections");
+            }
+            catch (java.lang.NullPointerException npe) {
+                Util.println("Error adding handler to list");
+                npe.printStackTrace();
+            }
+            catch (Exception e) {
+                Util.fault("Unknown error");
             }
         }
     }
 
     public static void main( String[] args )
     {
-        // TODO: Parse args differently
-        if (args.length == 0)
+        TcpChatServer server;
+        
+        // We have 1-2 args...
+        if (args.length < 1 * 2 || args.length > 2 * 2)
         {
-            System.out.println( "Usage: SimpleSocketServer <port>" );
-            System.exit(0);
+            Util.fault( "Usage: SimpleSocketServer -port <port>" );
         }
-        int port = Integer.parseInt(args[0]);
-        System.out.println("Start server on port: " + port);
+        
+        server = new TcpChatServer(args);
+        
+        if (server.verbose) Util.println("Starting server on port " + server.port);
 
-        TcpChatServer server = new TcpChatServer(port);
         server.startServer();
 
-        // Automatically shutdown in 1 minute
+        // Automatically shutdown in 8 hours
         try
         {
-            Thread.sleep(60000);
+            Thread.sleep(28800000);
         }
         catch(Exception e)
         {
@@ -132,16 +156,20 @@ public class TcpChatServer extends Thread {
         }
 
         server.stopServer();
+        Util.fault("Server timeout");
     }
-    
 }
 
-class RequestHandler extends Thread
+class ClientConnectionHandler extends Thread
 {
-    private Socket socket;
-    RequestHandler(Socket socket)
+    public Socket socket;
+    private TcpChatServer server;
+    public PrintWriter out;
+    
+    ClientConnectionHandler(Socket socket, TcpChatServer server)
     {
         this.socket = socket;
+        this.server = server;
     }
 
     @Override
@@ -151,103 +179,86 @@ class RequestHandler extends Thread
         {
             // Thanks to this tutorial for this date code...
             // https://www.edureka.co/blog/date-format-in-java/#:~:text=Creating%20A%20Simple%20Date%20Format,-A%20SimpleDateFormat%20is&text=String%20pattern%20%3D%20%22yyyy%2DMM,for%20formatting%20and%20parsing%20dates.
-            Date date = new Date();
-            SimpleDateFormat simpDate = new SimpleDateFormat("dd/MM hh:mm::ss");
-            String stringDate = simpDate.format(date);
+            // Date date = new Date();
+            // SimpleDateFormat simpDate = new SimpleDateFormat("dd/MM hh:mm::ss");
+            // String stringDate = simpDate.format(date);
 
-            System.out.println("Received a connection " + stringDate);
+            // if (server.verbose) Util.println("Received a connection " + stringDate);
 
             // Get input and output streams
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream());
+            BufferedReader in = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
+            out = new PrintWriter(this.socket.getOutputStream());
 
-            String rotationNumberString = null;
-            int rotationInt = 0;
-
-            // Make sure we get a number and follow the protocol for establishing a correct rotation number
-            while (rotationNumberString == null) {
-                try {
-                    rotationNumberString = in.readLine();
-                    rotationInt = Integer.parseInt(rotationNumberString);
-
-                    // Make sure rotation number is positive
-                    if (rotationInt <= 0 || rotationInt >= 25) {
-                        out.println("Please enter a rotation number in the range 1..25");
+            try {
+                
+                out.println("Thank you for connecting!\n");
+                out.flush();
+                
+                String inMsg = "";
+                
+                while (this.socket.isConnected()) {
+                    try {
+                        // read in a message from the client we're connected to
+                        inMsg = in.readLine();
+                        
+                        if (inMsg == null) {
+                            break;
+                        }
+                        
+                        if (server.verbose) Util.println("--> Client on port " + socket.getPort() + " says: " + inMsg + "\nPassing msg to ");
+                        
+                        // broadcast message to all other connected clients
+                        for (ClientConnectionHandler handler : server.handlers) {
+                            if (handler != this) {
+                                if (server.verbose) Util.println("--> " + handler.socket.getPort());
+                                handler.out.println(inMsg);
+                                handler.out.flush();
+                            }
+                        }
+                    }
+                    catch (Exception e) {
+                        out.println("Whoops, server error! Sorry about that...");
                         out.flush();
-
-                        rotationNumberString = null;
-                        rotationInt = 0;
-
-                        continue;
                     }
                 }
-                catch (Exception e) {
-                    out.println("Silly, that's not valid a number... Try again");
-                    out.flush();
-
-                    rotationNumberString = null;
-                }
             }
-
-            // Echo back the valid rotationNumber we inevitably recieved
-            // TODO: Remove rotation number connection 
-            out.println(rotationNumberString);
-            out.flush();
-
-            // TODO: remove cipher code
-            String stringToCipher = "";
-            String cipheredString = "";
-
-            // continue ciphering any further messages
-            try {
-                while(socket.isConnected())
-                {
-                    stringToCipher = in.readLine();
-
-                    // cipheredString = CaesarCipher(stringToCipher, rotationInt);
-
-                    out.println(cipheredString);
-                    out.flush();
-                }
+            
+            catch(NullPointerException e) { 
+                
             }
-            catch(NullPointerException e) { }
-
+            
+            // remove ourself from the active handler list
+            server.handlers.remove(this);
+            
+            if (server.verbose) Util.println("Server connection on port " + socket.getPort() + " has been closed");
+            
             // Close the connection
             in.close();
             out.close();
             socket.close();
-
-            System.out.println("CaesarCipherServer connection establsihed " + stringDate + " has been closed");
         }
         catch(Exception e)
         {
-            e.printStackTrace();
+            Util.fault("Error processing messages");
         }
     }
-//     // This method based off of the encrypt function of this example...
-//     // https://examples.javacodegeeks.com/caesar-cipher-java-example/#:~:text=It%20is%20a%20type%20of,to%20communicate%20with%20his%20generals.
-//     private String CaesarCipher(String stringToCipher, int rotationNumber) {
-//         StringBuffer result = new StringBuffer();
+}
 
-//         for (int i = 0; i < stringToCipher.length(); i++) {
-            
-//             // uppercase character, map to uppercase characters
-//             if (Character.isUpperCase(stringToCipher.charAt(i))) {
-//                 char ch = (char) (((int) stringToCipher.charAt(i) +
-//                         rotationNumber - 65) % 26 + 65);
-//                 result.append(ch);
+// utility print functions to save my fingers and improve readability
+class Util {
+    public static void println(String message) {
+        System.out.println(message);
+        System.out.flush();
+    }
 
-//             // lowercase character, map to lowercase characters
-//             } else if (Character.isLowerCase(stringToCipher.charAt(i))) {
-//                 char ch = (char) (((int) stringToCipher.charAt(i) +
-//                         rotationNumber - 97) % 26 + 97);
-//                 result.append(ch);
-
-//             // other symbol, don't touch it
-//             } else {
-//                 result.append(stringToCipher.charAt(i));
-//             }
-//         }
-//         return result.toString();
-//     }
+    public static void print(String message) {
+        System.out.print(message);
+        System.out.flush();
+    }
+    
+    public static void fault(String message) {
+        System.err.println(message);
+        System.err.flush();
+        System.exit(0);
+    }
 }
