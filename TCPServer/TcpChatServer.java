@@ -19,6 +19,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 
 /*
@@ -32,7 +33,7 @@ public class TcpChatServer extends Thread {
     private boolean running = false;
     public boolean verbose = false;
     
-    public List<ClientConnectionHandler> handlers;
+    public List<ClientConnectionHandler> handlers;;
 
     public TcpChatServer(String[] args) {
         // run through all args and parse out what we need to
@@ -62,6 +63,7 @@ public class TcpChatServer extends Thread {
     public void startServer() {
         try {
             serverSocket = new ServerSocket(port);
+            this.handlers = new LinkedList<ClientConnectionHandler>();
             this.start();
         } 
         catch(java.net.ConnectException ce) {
@@ -165,6 +167,7 @@ class ClientConnectionHandler extends Thread
     public Socket socket;
     private TcpChatServer server;
     public PrintWriter out;
+    public String username = "";
     
     ClientConnectionHandler(Socket socket, TcpChatServer server)
     {
@@ -205,12 +208,24 @@ class ClientConnectionHandler extends Thread
                             break;
                         }
                         
-                        if (server.verbose) Util.println("--> Client on port " + socket.getPort() + " says: " + inMsg + "\nPassing msg to ");
+                        try {
+                            username = inMsg.split(" ")[0].replace('<', '\u0000').replace('>', '\u0000');
+                        }
+                        catch (Exception e) {
+                            if (server.verbose) Util.println("Could not parse username");
+                        }
+                        
+                        if (server.verbose) {
+                            Util.println("--> Client on port " + socket.getPort() + ": " + inMsg + "\nPassing message to...");
+                            if (server.handlers.size() <= 1) {
+                                Util.println("Nobody. This client is lonely");
+                            }
+                        }
                         
                         // broadcast message to all other connected clients
                         for (ClientConnectionHandler handler : server.handlers) {
                             if (handler != this) {
-                                if (server.verbose) Util.println("--> " + handler.socket.getPort());
+                                if (server.verbose) Util.println("<-- " + handler.socket.getPort());
                                 handler.out.println(inMsg);
                                 handler.out.flush();
                             }
@@ -223,14 +238,20 @@ class ClientConnectionHandler extends Thread
                 }
             }
             
-            catch(NullPointerException e) { 
-                
-            }
+            catch(NullPointerException e) { }
             
             // remove ourself from the active handler list
             server.handlers.remove(this);
             
             if (server.verbose) Util.println("Server connection on port " + socket.getPort() + " has been closed");
+            
+            // broadcast message that the user disconnected to all other connected clients
+            for (ClientConnectionHandler handler : server.handlers) {
+                if (handler != this) {
+                    handler.out.println("User " + username + " disconnected from the server");
+                    handler.out.flush();
+                }
+            }
             
             // Close the connection
             in.close();
