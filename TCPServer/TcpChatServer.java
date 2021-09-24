@@ -17,13 +17,11 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
 /*
-Based heavily on this example...
+Initial Ceasar Cipher code based heavily on this example...
 https://www.infoworld.com/article/2853780/socket-programming-for-scalable-systems.html
 */
 
@@ -33,7 +31,8 @@ public class TcpChatServer extends Thread {
     private boolean running = false;
     public boolean verbose = false;
     
-    public List<ClientConnectionHandler> handlers;;
+    // this is the Java equivalent of your "socks" list of sockets in Python
+    public List<ClientConnectionHandler> handlers;
 
     public TcpChatServer(String[] args) {
         // run through all args and parse out what we need to
@@ -63,6 +62,7 @@ public class TcpChatServer extends Thread {
     public void startServer() {
         try {
             serverSocket = new ServerSocket(port);
+            // instantiate the list of client handlers
             this.handlers = new LinkedList<ClientConnectionHandler>();
             this.start();
         } 
@@ -87,16 +87,15 @@ public class TcpChatServer extends Thread {
     
     public static void displayUsageErrorMessage() {
         Util.fault(
-            "Usage: java TcpChatServer --port <port>\n" +
-            "Also supported is --verbose\n"
+            "Usage: java TcpChatServer --port <port> (-p)\n" +
+            "Also supported is --verbose (-v)"
         );
     }
 
     @Override
     public void run() {
         // Continually wait for new connections and spawn a request handler thread for every new connection
-        this.running = true;
-        while(this.running)
+        while(true)
         {
             try
             {
@@ -130,16 +129,17 @@ public class TcpChatServer extends Thread {
         }
     }
 
-    public static void main( String[] args )
+    public static void main(String[] args)
     {
         TcpChatServer server;
         
-        // We have 1-2 args...
-        if (args.length < 1 * 2 || args.length > 2 * 2)
+        // We only have 1-2 optional arguments with values
+        if (args.length > 4)
         {
             Util.fault( "Usage: SimpleSocketServer -port <port>" );
         }
         
+        // create and start up the server
         server = new TcpChatServer(args);
         
         if (server.verbose) Util.println("Starting server on port " + server.port);
@@ -180,14 +180,6 @@ class ClientConnectionHandler extends Thread
     {
         try
         {
-            // Thanks to this tutorial for this date code...
-            // https://www.edureka.co/blog/date-format-in-java/#:~:text=Creating%20A%20Simple%20Date%20Format,-A%20SimpleDateFormat%20is&text=String%20pattern%20%3D%20%22yyyy%2DMM,for%20formatting%20and%20parsing%20dates.
-            // Date date = new Date();
-            // SimpleDateFormat simpDate = new SimpleDateFormat("dd/MM hh:mm::ss");
-            // String stringDate = simpDate.format(date);
-
-            // if (server.verbose) Util.println("Received a connection " + stringDate);
-
             // Get input and output streams
             BufferedReader in = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
             out = new PrintWriter(this.socket.getOutputStream());
@@ -204,11 +196,15 @@ class ClientConnectionHandler extends Thread
                         // read in a message from the client we're connected to
                         inMsg = in.readLine();
                         
+                        // if readLine() keeps getting null the client disconnected
                         if (inMsg == null) {
                             break;
                         }
                         
+                        // parse the username for fun
                         try {
+                            // \u0000 is the lowest index character literal. Java doesn't like '' so had to use this.
+                            // Found solution here... https://www.delftstack.com/howto/java/empty-character-literal-java/#:~:text=To%20go%20around%20the%20problem,type%20char%20%2C%20'%5Cu0000'%20.
                             username = inMsg.split(" ")[0].replace('<', '\u0000').replace('>', '\u0000');
                         }
                         catch (Exception e) {
@@ -245,6 +241,7 @@ class ClientConnectionHandler extends Thread
             
             if (server.verbose) Util.println("Server connection on port " + socket.getPort() + " has been closed");
             
+            // kept track of username for this fun message
             // broadcast message that the user disconnected to all other connected clients
             for (ClientConnectionHandler handler : server.handlers) {
                 if (handler != this) {
