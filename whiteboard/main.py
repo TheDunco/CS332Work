@@ -1,3 +1,10 @@
+# Main brython code for running a website client whiteboard
+#
+# Original author: Victor Norman at Calvin University
+# Modified by Duncan Van Keulen for CS332 Advanced Networking at Calvin University
+# 
+# To run: python3 -m http.server
+# 
 
 from browser import document, html, DOMEvent, websocket
 from javascript import JSON
@@ -20,7 +27,23 @@ server_ip = document.location.host.split(':')[0]
 
 # TODO: store last_x and last_y values *for each client* in some data structure
 # defined here.
+mouse_dict = {
+    "x": 0,
+    "y": 0,
+    "color": "black"
+}
 
+def send_data_to_server(penIsDown):
+    if not penIsDown:
+        mouse_dict.color = None
+
+    # TODO: need to figure out how to serialize JSON with this API
+    websocket.send(JSON.serialize(mouse_dict))
+    
+def update_mouse_data(x, y):
+    mouse_dict.x = x
+    mouse_dict.y = y
+    mouse_dict.color = color_choice
 
 def handle_mousemove(ev: DOMEvent):
     '''On behalf of all that is good, I apologize for using global
@@ -39,16 +62,20 @@ def handle_mousemove(ev: DOMEvent):
         my_lasty = ev.y
         ctx.beginPath()
         ctx.moveTo(my_lastx, my_lasty)
-        # TODO: send data to server.
+        # update our dictionary
+        update_mouse_data(my_lastx, my_lasty)
+        # send data to server.
+        send_data_to_server(False)
     else:
         ctx.lineTo(ev.x, ev.y)
         ctx.strokeStyle = color_choice
         ctx.stroke()
-        # TODO: send data to server.
+        # send data to server.
+        send_data_to_server(True)
         # Store new (x, y) as the last point.
         my_lastx = ev.x
         my_lasty = ev.y
-
+        update_mouse_data(my_lastx, my_lasty)
 
 def handle_other_client_data(data):
     # TODO: you, gentle student, need to provide the code here. It is
@@ -79,7 +106,6 @@ def set_server_ip(evt):
     ws.bind('message', on_mesg_recv)
 
 # ----------------------- Main -----------------------------
-
 
 canvas = html.CANVAS(width=WIDTH, height=HEIGHT, id="myCanvas")
 document <= canvas

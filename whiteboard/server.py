@@ -5,6 +5,9 @@
 # Date: 24 June 2021
 # Original author: Victor Norman at Calvin University
 #
+# Due Date: 13 October 2021
+# Modified by Duncan Van Keulen for CS332 Advanced Networking at Calvin University
+#
 
 import asyncio
 import websockets
@@ -17,19 +20,23 @@ DEBUG = True
 PORT = 8001
 
 # TODO: need a variable here to hold all connected clients' websocket objects.
+my_clients = []
 
 
 def register_new_client(client_ws):
+    '''Add a client ot my list of clients'''
+    my_clients.append(client_ws)
+    
     if DEBUG:
-        print('register new client!')
-    # TODO: add code here to store the client_ws in your collection of websockets.
+        print('registered new client! ' + str(client_ws.host))
 
 
 def unregister_client(websocket):
+    '''Remove a client from my list of clients'''
+    my_clients.remove(websocket)
+    
     if DEBUG:
-        print('removed new client!')
-    # TODO: add code here to remove the client_ws from your collection of websockets.
-
+        print('removed old client!')
 
 async def per_client_handler(client_ws, path):
     '''This function is called whenever a client connects to the server. It
