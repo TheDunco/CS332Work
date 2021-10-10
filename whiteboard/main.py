@@ -14,6 +14,8 @@ HEIGHT = 600
 
 SERVER_PORT = 8001
 
+DEBUG = True
+
 
 my_lastx = None
 my_lasty = None
@@ -24,26 +26,53 @@ color_choice = 'black'      # default value
 # as the machine on which the websockets server is running.
 server_ip = document.location.host.split(':')[0]
 
+class Mousedata:
+    x = 0
+    y = 0
+    color = "black"
+    
+    def __init__(self, x, y, color):
+        self.x = x
+        self.y = y
+        self.color = color
+        
+    def __str__(self):
+        return "{'x': " + str(self.x) + ", 'y': " + str(self.y) + ", 'color': " + str(self.color) + "}"
+        
+    def __repr__(self):
+        return "{'x': " + str(self.x) + ", 'y': " + str(self.y) + ", 'color': " + str(self.color) + "}"
 
 # TODO: store last_x and last_y values *for each client* in some data structure
 # defined here.
-mouse_dict = {
-    "x": 0,
-    "y": 0,
-    "color": "black"
-}
+client_mouse_data = [ Mousedata(0, 0, "black") ]
+
 
 def send_data_to_server(penIsDown):
+    global client_mouse_data
+    # if the pen is up, we set the color to none
     if not penIsDown:
-        mouse_dict.color = None
-
-    # TODO: need to figure out how to serialize JSON with this API
-    websocket.send(JSON.serialize(mouse_dict))
+        client_mouse_data[0].color = None
+        
+    # stringify (serialize) the dictionary to json
+    serial_data = JSON.stringify(str(client_mouse_data[0]))
+    
+    if DEBUG:
+        print(serial_data)
+    if serial_data:
+        # send the data to the server
+        ws.send(serial_data)
+    else:
+        if DEBUG:
+            print('error sending data')
+    
     
 def update_mouse_data(x, y):
-    mouse_dict.x = x
-    mouse_dict.y = y
-    mouse_dict.color = color_choice
+    global client_mouse_data
+    global color_choice
+    client_mouse_data[0].x = x
+    client_mouse_data[0].y = y
+    client_mouse_data[0].color = color_choice
+
 
 def handle_mousemove(ev: DOMEvent):
     '''On behalf of all that is good, I apologize for using global
@@ -54,6 +83,7 @@ def handle_mousemove(ev: DOMEvent):
     global ctx
     global my_lastx, my_lasty
     global ws
+    global client_mouse_data
 
     # This is the first event or the mouse is being moved without a button
     # being pushed -- don't draw anything, but record where the mouse is.
@@ -77,18 +107,19 @@ def handle_mousemove(ev: DOMEvent):
         my_lasty = ev.y
         update_mouse_data(my_lastx, my_lasty)
 
-def handle_other_client_data(data):
-    # TODO: you, gentle student, need to provide the code here. It is
-    # very similar in structure to handle_mousemove() above -- but there
-    # are some logical differences.
-    pass
-
 
 def on_mesg_recv(evt):
     '''message received from server'''
     # Replace next line if you decide to send data not using JSON formatting.
     data = JSON.parse(evt.data)
     handle_other_client_data(data)
+
+
+def handle_other_client_data(data):
+    # TODO: you, gentle student, need to provide the code here. It is
+    # very similar in structure to handle_mousemove() above -- but there
+    # are some logical differences.
+    pass
 
 
 def set_color(evt):
@@ -111,8 +142,12 @@ canvas = html.CANVAS(width=WIDTH, height=HEIGHT, id="myCanvas")
 document <= canvas
 ctx = document.getElementById("myCanvas").getContext("2d")
 
+if DEBUG:
+    print("binding mousemove")
 canvas.bind('mousemove', handle_mousemove)
-
+if DEBUG:
+    print("bound mousemove")
+    
 document <= html.P()
 color_btn = html.BUTTON("Set color: ", Class="button")
 color_btn.bind("click", set_color)
@@ -127,5 +162,9 @@ document <= server_btn
 server_txt_input = html.INPUT(type="text", id="server_input", value=server_ip)
 document <= server_txt_input
 
+if DEBUG:
+    print("binding websocket")
 ws = websocket.WebSocket(f"ws://{server_ip}:{SERVER_PORT}/")
 ws.bind('message', on_mesg_recv)
+if DEBUG:
+    print("bound websocket")

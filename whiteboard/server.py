@@ -28,7 +28,7 @@ def register_new_client(client_ws):
     my_clients.append(client_ws)
     
     if DEBUG:
-        print('registered new client! ' + str(client_ws.host))
+        print('+ registered new client! ' + str(client_ws.host))
 
 
 def unregister_client(websocket):
@@ -36,7 +36,7 @@ def unregister_client(websocket):
     my_clients.remove(websocket)
     
     if DEBUG:
-        print('removed old client!')
+        print('- removed old client!')
 
 async def per_client_handler(client_ws, path):
     '''This function is called whenever a client connects to the server. It
