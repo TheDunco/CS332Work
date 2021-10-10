@@ -27,20 +27,32 @@ color_choice = 'black'      # default value
 server_ip = document.location.host.split(':')[0]
 
 class Mousedata:
-    x = 0
-    y = 0
-    color = "black"
+    struct = {
+        'x': 0,
+        'y': 0,
+        'color': 'yellow'
+    }
     
     def __init__(self, x, y, color):
-        self.x = x
-        self.y = y
-        self.color = color
+        self.struct.x = x
+        self.struct.y = y
+        self.struct.color = color
         
-    def __str__(self):
-        return "{'x': " + str(self.x) + ", 'y': " + str(self.y) + ", 'color': " + str(self.color) + "}"
+    def get_dict(self):
+        return self.struct
         
-    def __repr__(self):
-        return "{'x': " + str(self.x) + ", 'y': " + str(self.y) + ", 'color': " + str(self.color) + "}"
+    def update_dict_x(self, new_x):
+        self.struct['x'] = new_x
+    
+    def update_dict_y(self, new_y):
+        self.struct['y'] = new_y
+        
+    def update_dict_color(self, new_color):
+        self.struct['color'] = new_color
+        
+    def set_none_color(self):
+        self.struct['color'] = None
+        
 
 # TODO: store last_x and last_y values *for each client* in some data structure
 # defined here.
@@ -51,10 +63,10 @@ def send_data_to_server(penIsDown):
     global client_mouse_data
     # if the pen is up, we set the color to none
     if not penIsDown:
-        client_mouse_data[0].color = None
+        client_mouse_data[0].set_none_color()
         
     # stringify (serialize) the dictionary to json
-    serial_data = JSON.stringify(str(client_mouse_data[0]))
+    serial_data = JSON.stringify(client_mouse_data[0].get_dict())
     
     if DEBUG:
         print(serial_data)
@@ -69,9 +81,9 @@ def send_data_to_server(penIsDown):
 def update_mouse_data(x, y):
     global client_mouse_data
     global color_choice
-    client_mouse_data[0].x = x
-    client_mouse_data[0].y = y
-    client_mouse_data[0].color = color_choice
+    client_mouse_data[0].update_dict_x(x)
+    client_mouse_data[0].update_dict_y(y)
+    client_mouse_data[0].update_dict_color(color_choice)
 
 
 def handle_mousemove(ev: DOMEvent):

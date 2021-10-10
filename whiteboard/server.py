@@ -19,21 +19,37 @@ DEBUG = True
 # Port the server listens on to receive connections.
 PORT = 8001
 
+next_id = 0
+
 # TODO: need a variable here to hold all connected clients' websocket objects.
 my_clients = []
 
+class Client:
+    id = 0
+    ws = None
+    
+    def __init__(self, sock, iD):
+        self.ws = sock
+        self.id = iD
+    
+    def get_id(self):
+        return self.id
 
-def register_new_client(client_ws):
+
+def register_new_client(client):
     '''Add a client ot my list of clients'''
-    my_clients.append(client_ws)
+    global next_id
+    
+    my_clients.append(client)
+    next_id += 1
     
     if DEBUG:
-        print('+ registered new client! ' + str(client_ws.host))
+        print('+ registered new client! ' + str(client.ws.host))
 
 
-def unregister_client(websocket):
+def unregister_client(client):
     '''Remove a client from my list of clients'''
-    my_clients.remove(websocket)
+    my_clients.remove(client)
     
     if DEBUG:
         print('- removed old client!')
@@ -42,20 +58,31 @@ async def per_client_handler(client_ws, path):
     '''This function is called whenever a client connects to the server. It
     does not exit until the client ends the connection. Thus, an instance of
     this function runs for each connected client.'''
-    register_new_client(client_ws)
+    global next_id
+    me = Client(client_ws, next_id)
+    register_new_client(me)
     try:
-        async for message in client_ws:
+        async for message in me.ws:
             # This next line assumes that the message we received is a stringify-ed
             # JSON object.  data will be a dictionary.
-            data = json.loads(message)
-            print('got data ', data)
-            # TODO: Add the client's unique id to the message before
+            print(message)
+            rcvd_data = json.loads(message)
+            if DEBUG:
+                print('rcvd data: ', rcvd_data, type(rcvd_data))
+            
+            # Add the client's unique id to the message before
             # sending to everyone.
+            rcvd_data["id"] = me.get_id()
 
             # TODO: Send received message to all *other* clients.
+            for client in my_clients:
+                if not client.id == me.get_id:
+                    client.ws.send(json.dumps(rcvd_data))
+                    if DEBUG: 
+                        print('sending ' + json.dumps(rcvd_data) + ' to client ' + str(client.id))
 
     finally:
-        unregister_client(client_ws)
+        unregister_client(me)
 
 
 # Adapted from https://stackoverflow.com/questions/166506/finding-local-ip-addresses-using-pythons-stdlib
