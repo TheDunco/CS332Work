@@ -44,6 +44,11 @@ def register_new_client(client):
     global next_id
     
     my_clients.append(client)
+    
+    '''client id keeps incrementing as there is no max in Python3+,
+    so every new client will have a truly unique id. This solves 
+    the problem of data not being sent to other clients because 
+    client 0 disconnected.'''
     next_id += 1
     
     if DEBUG:
@@ -55,7 +60,6 @@ def unregister_client(client):
     global next_id
     
     my_clients.remove(client)
-    next_id -= 1
     
     if DEBUG:
         print('- removed old client!')
@@ -71,7 +75,6 @@ async def per_client_handler(client_ws, path):
         async for message in me.ws:
             # This next line assumes that the message we received is a stringify-ed
             # JSON object.  data will be a dictionary.
-            print(message)
             rcvd_data = json.loads(message)
             if DEBUG:
                 print('rcvd data: ', rcvd_data, type(rcvd_data))
@@ -80,7 +83,7 @@ async def per_client_handler(client_ws, path):
             # sending to everyone.
             rcvd_data["id"] = me.get_id()
 
-            # TODO: Send received message to all *other* clients.
+            # Send received message to all *other* clients.
             for client in my_clients:
                 if not client.id == me.get_id():
                     client.get_socket().send(json.dumps(rcvd_data))

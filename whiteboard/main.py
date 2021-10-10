@@ -27,6 +27,8 @@ color_choice = 'black'      # default value
 server_ip = document.location.host.split(':')[0]
 
 class Mousedata:
+    '''A class to hold and access data about the 
+    drawing mouse on the whiteboard'''
     struct = {
         'x': 0,
         'y': 0,
@@ -78,12 +80,12 @@ def send_data_to_server(penIsDown):
             print('error sending data')
     
     
-def update_mouse_data(x, y):
+def update_mouse_data(cid, x, y):
     global client_mouse_data
     global color_choice
-    client_mouse_data[0].update_dict_x(x)
-    client_mouse_data[0].update_dict_y(y)
-    client_mouse_data[0].update_dict_color(color_choice)
+    client_mouse_data[cid].update_dict_x(x)
+    client_mouse_data[cid].update_dict_y(y)
+    client_mouse_data[cid].update_dict_color(color_choice)
 
 
 def handle_mousemove(ev: DOMEvent):
@@ -105,7 +107,7 @@ def handle_mousemove(ev: DOMEvent):
         ctx.beginPath()
         ctx.moveTo(my_lastx, my_lasty)
         # update our dictionary
-        update_mouse_data(my_lastx, my_lasty)
+        update_mouse_data(0, my_lastx, my_lasty)
         # send data to server.
         send_data_to_server(False)
     else:
@@ -117,7 +119,7 @@ def handle_mousemove(ev: DOMEvent):
         # Store new (x, y) as the last point.
         my_lastx = ev.x
         my_lasty = ev.y
-        update_mouse_data(my_lastx, my_lasty)
+        update_mouse_data(0, my_lastx, my_lasty)
 
 
 def on_mesg_recv(evt):
