@@ -131,7 +131,7 @@ def handle_other_client_data(data):
     # TODO: you, gentle student, need to provide the code here. It is
     # very similar in structure to handle_mousemove() above -- but there
     # are some logical differences.
-    pass
+    print('got other client data')
 
 
 def set_color(evt):

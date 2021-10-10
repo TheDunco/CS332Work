@@ -34,6 +34,9 @@ class Client:
     
     def get_id(self):
         return self.id
+        
+    def get_socket(self):
+        return self.ws
 
 
 def register_new_client(client):
@@ -49,7 +52,10 @@ def register_new_client(client):
 
 def unregister_client(client):
     '''Remove a client from my list of clients'''
+    global next_id
+    
     my_clients.remove(client)
+    next_id -= 1
     
     if DEBUG:
         print('- removed old client!')
@@ -76,10 +82,10 @@ async def per_client_handler(client_ws, path):
 
             # TODO: Send received message to all *other* clients.
             for client in my_clients:
-                if not client.id == me.get_id:
-                    client.ws.send(json.dumps(rcvd_data))
+                if not client.id == me.get_id():
+                    client.get_socket().send(json.dumps(rcvd_data))
                     if DEBUG: 
-                        print('sending ' + json.dumps(rcvd_data) + ' to client ' + str(client.id))
+                        print('sent ' + json.dumps(rcvd_data) + ' to client ' + str(client.id) + '\n')
 
     finally:
         unregister_client(me)
