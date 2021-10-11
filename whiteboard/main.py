@@ -27,8 +27,8 @@ color_choice = 'black'      # default value
 server_ip = document.location.host.split(':')[0]
 
 class Mousedata:
-    '''A class to hold and access data about the 
-    drawing mouse on the whiteboard'''
+    '''A class to hold and access data about a 
+    'mouse'/client drawing on the whiteboard'''
     struct = {
         'x': 0,
         'y': 0,
@@ -108,13 +108,13 @@ def handle_mousemove(ev: DOMEvent):
         ctx.moveTo(my_lastx, my_lasty)
         # update our dictionary
         update_mouse_data(0, my_lastx, my_lasty)
-        # send data to server.
+        # send data to server (pen up)
         send_data_to_server(False)
     else:
         ctx.lineTo(ev.x, ev.y)
         ctx.strokeStyle = color_choice
         ctx.stroke()
-        # send data to server.
+        # send data to server (pen down)
         send_data_to_server(True)
         # Store new (x, y) as the last point.
         my_lastx = ev.x

@@ -85,8 +85,8 @@ async def per_client_handler(client_ws, path):
 
             # Send received message to all *other* clients.
             for client in my_clients:
-                if not client.id == me.get_id():
-                    client.get_socket().send(json.dumps(rcvd_data))
+                if not client.get_id() == me.get_id():
+                    await client.get_socket().send(json.dumps(rcvd_data))
                     if DEBUG: 
                         print('sent ' + json.dumps(rcvd_data) + ' to client ' + str(client.id) + '\n')
 
