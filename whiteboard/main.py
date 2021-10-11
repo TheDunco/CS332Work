@@ -46,8 +46,17 @@ class Mousedata:
     def get_id(self):
         return self.id
         
-    def get_dict(self):
+    def get_mouse_dict(self):
         return self.struct
+        
+    def get_x(self):
+        return self.struct.x
+        
+    def get_y(self):
+        return self.struct.y
+        
+    def get_color(self):
+        return self.struct.color
         
     def update_dict_x(self, new_x):
         self.struct['x'] = new_x
@@ -74,7 +83,7 @@ def send_data_to_server(penIsDown):
         client_mouse_data[0].set_none_color()
         
     # stringify (serialize) the dictionary to json
-    serial_data = JSON.stringify(client_mouse_data[0].get_dict())
+    serial_data = JSON.stringify(client_mouse_data[0].get_mouse_dict())
     
     if DEBUG:
         print(serial_data)
@@ -137,26 +146,30 @@ def on_mesg_recv(evt):
 
 def register_or_unregister_client(data):
     '''If the data includes an unregister field, remove that client from our list
-    as we don't have to keep track of it anymore. Otherwise, if there is a new client,
-    start keeping track of it.
-    Returns False if we unregistered a client and no further action is to be taken, True otherwise'''
+    as we don't have to keep track of it anymore. Otherwise, if there is a new client, start keeping track of it.
+    Returns None if we unregistered a client and no further action is to be taken, returns the client we'll be
+    drawing with (whether that be the new one or the one with selected id) otherwise'''
     
     # if there is something to unregister, remove that client from our midst
     if data.has_key('unregister'):
         for c in client_mouse_data:
             if c.get_id() == data.unregister:
                 client_mouse_data.remove(c)
-                return False
+                return None
                 
     # if there is a new client, register it. Loop based off of this example...
     # https://thispointer.com/python-how-to-check-if-an-item-exists-in-list-search-by-value-or-condition/
-    if not any(mouse_data.get_id() == data.id for mouse_data in client_mouse_data):
-        client_mouse_data.append( Mousedata(data.id, data.x, data.y, data.color) )
-        return True
+    if not any(mouse_data.get_id() == data['id'] for mouse_data in client_mouse_data):
+        new_client = Mousedata(data['id'], data['x'], data['y'], data['color'])
+        client_mouse_data.append(new_client)
+        return new_client
         
-    # if we didn't do anything, all is normal
-    return True
-        
+    # if we didn't do anything, all is normal, so we'll be drawing from the client 
+    for c in client_mouse_data:
+        if c.get_id() == data['id']:
+            return c
+    else:
+        return None
 
 def handle_other_client_data(data):
     # TODO: you, gentle student, need to provide the code here. It is
@@ -167,19 +180,20 @@ def handle_other_client_data(data):
     
     global ctx
         
-    if register_or_unregister_client(data):
-    # if we didn't unregister a client...
-        if data.color is None: # pen is up
+    our_client = register_or_unregister_client(data)
+    
+    if not our_client == None: # if we didn't unregister a client...
+        if our_client.get_color() is None: # pen is up
             ctx.beginPath()
-            ctx.moveTo(data.x, data.y)
+            ctx.moveTo(our_client.get_x(), our_client.get_y())
             # update our dictionary
-            update_mouse_data(data.id, data.x, data.y, data.color)
+            update_mouse_data(our_client.get_id(), our_client.get_x(), our_client.get_y(), our_client.get_color())
         else: # pen is down
-            ctx.lineTo(data.x, data.y)
-            ctx.strokeStyle = data.color
+            ctx.lineTo(our_client.get_(), our_client.get_y())
+            ctx.strokeStyle = our_client.get_color()
             ctx.stroke()
             # Store new (x, y) as the last point.
-            update_mouse_data(data.id, data.x, data.y, data.color)
+            update_mouse_data(our_client.get_id(), our_client.get_x(), our_client.get_y(), our_client.get_color())
         
 
 def set_color(evt):

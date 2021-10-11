@@ -91,12 +91,15 @@ async def per_client_handler(client_ws, path):
             # Send received message to all *other* clients.
             for client in my_clients:
                 if not client.get_id() == me.get_id():
+                    
                     await client.get_socket().send(json.dumps(rcvd_data))
+                    
                     if DEBUG: 
                         print('sent ' + json.dumps(rcvd_data) + ' to client ' + str(client.id) + '\n')
-
+    except websocket.exceptions.ConnectionClosedOK:
+        pass
     finally:
-        unregister_client(me)
+        await unregister_client(me)
 
 
 # Adapted from https://stackoverflow.com/questions/166506/finding-local-ip-addresses-using-pythons-stdlib
