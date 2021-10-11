@@ -55,11 +55,16 @@ def register_new_client(client):
         print('+ registered new client! ' + str(client.ws.host))
 
 
-def unregister_client(client):
+async def unregister_client(client):
     '''Remove a client from my list of clients'''
-    global next_id
+    
+    tmpid = client.get_id()
     
     my_clients.remove(client)
+    
+    # send message to other clients that this client was disconnected
+    for c in my_clients:
+        await c.get_socket().send(json.dumps({"unregister": tmpid}))
     
     if DEBUG:
         print('- removed old client!')

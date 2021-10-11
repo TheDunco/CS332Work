@@ -35,10 +35,16 @@ class Mousedata:
         'color': 'yellow'
     }
     
-    def __init__(self, x, y, color):
+    id = 0
+    
+    def __init__(self, id, x, y, color):
+        self.id = id
         self.struct.x = x
         self.struct.y = y
         self.struct.color = color
+        
+    def get_id(self):
+        return self.id
         
     def get_dict(self):
         return self.struct
@@ -56,9 +62,9 @@ class Mousedata:
         self.struct['color'] = None
         
 
-# TODO: store last_x and last_y values *for each client* in some data structure
-# defined here.
-client_mouse_data = [ Mousedata(0, 0, "black") ]
+# Store last_x and last_y values *for each client* in some data structure
+#                              id  x  y  color
+client_mouse_data = [ Mousedata(0, 0, 0, "black") ]
 
 
 def send_data_to_server(penIsDown):
@@ -80,12 +86,12 @@ def send_data_to_server(penIsDown):
             print('error sending data')
     
     
-def update_mouse_data(cid, x, y):
+def update_mouse_data(cid, x, y, color = color_choice):
     global client_mouse_data
-    global color_choice
+    
     client_mouse_data[cid].update_dict_x(x)
     client_mouse_data[cid].update_dict_y(y)
-    client_mouse_data[cid].update_dict_color(color_choice)
+    client_mouse_data[cid].update_dict_color(color)
 
 
 def handle_mousemove(ev: DOMEvent):
@@ -129,12 +135,52 @@ def on_mesg_recv(evt):
     handle_other_client_data(data)
 
 
+def register_or_unregister_client(data):
+    '''If the data includes an unregister field, remove that client from our list
+    as we don't have to keep track of it anymore. Otherwise, if there is a new client,
+    start keeping track of it.
+    Returns False if we unregistered a client and no further action is to be taken, True otherwise'''
+    
+    # if there is something to unregister, remove that client from our midst
+    if data.has_key('unregister'):
+        for c in client_mouse_data:
+            if c.get_id() == data.unregister:
+                client_mouse_data.remove(c)
+                return False
+                
+    # if there is a new client, register it. Loop based off of this example...
+    # https://thispointer.com/python-how-to-check-if-an-item-exists-in-list-search-by-value-or-condition/
+    if not any(mouse_data.get_id() == data.id for mouse_data in client_mouse_data):
+        client_mouse_data.append( Mousedata(data.id, data.x, data.y, data.color) )
+        return True
+        
+    # if we didn't do anything, all is normal
+    return True
+        
+
 def handle_other_client_data(data):
     # TODO: you, gentle student, need to provide the code here. It is
     # very similar in structure to handle_mousemove() above -- but there
     # are some logical differences.
-    print('got other client data')
-
+    if DEBUG:
+        print(data)
+    
+    global ctx
+        
+    if register_or_unregister_client(data):
+    # if we didn't unregister a client...
+        if data.color is None: # pen is up
+            ctx.beginPath()
+            ctx.moveTo(data.x, data.y)
+            # update our dictionary
+            update_mouse_data(data.id, data.x, data.y, data.color)
+        else: # pen is down
+            ctx.lineTo(data.x, data.y)
+            ctx.strokeStyle = data.color
+            ctx.stroke()
+            # Store new (x, y) as the last point.
+            update_mouse_data(data.id, data.x, data.y, data.color)
+        
 
 def set_color(evt):
     global color_choice
