@@ -15,7 +15,7 @@ import json
 import socket
 
 # Change to False when you are done debugging.
-DEBUG = True
+DEBUG = False
 # Port the server listens on to receive connections.
 PORT = 8001
 
@@ -82,7 +82,8 @@ async def per_client_handler(client_ws, path):
             # Add the client's unique id to the message before
             # sending to everyone.
             rcvd_data['id'] = me.get_id()
-            print(rcvd_data['color'])
+            if DEBUG:
+                print(rcvd_data['color'])
 
             # Send received message to all *other* clients.
             for client in my_clients:

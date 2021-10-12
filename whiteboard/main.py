@@ -1,7 +1,9 @@
 # Main brython code for running a website client whiteboard
 #
 # Original author: Victor Norman at Calvin University
+#
 # Modified by Duncan Van Keulen for CS332 Advanced Networking at Calvin University
+# Due Date: 13 October 2021
 # 
 # To run: python3 -m http.server
 # 
@@ -14,7 +16,7 @@ HEIGHT = 600
 
 SERVER_PORT = 8001
 
-DEBUG = True
+DEBUG = False
 
 
 my_lastx = None
@@ -212,6 +214,7 @@ def handle_other_client_data(data):
     
     if DEBUG:
         print('adding new client')
+        
     # we didn't have this client before
     if not found_client:
         our_client = Mousedata(data['id'], data['x'], data['y'], data['color'])
@@ -221,8 +224,6 @@ def handle_other_client_data(data):
         our_client.update_full_dict(data)
         client_mouse_data[c_index] = our_client
         
-    if DEBUG:
-        print('drawing from client ' + our_client.get_id())
     # draw what the client has/move to where it should be
     if not our_client == None: # make sure we have a valid client to draw with
         if DEBUG:
