@@ -58,13 +58,8 @@ def register_new_client(client):
 async def unregister_client(client):
     '''Remove a client from my list of clients'''
     
-    tmpid = client.get_id()
-    
+    print('removing client from list')
     my_clients.remove(client)
-    
-    # send message to other clients that this client was disconnected
-    for c in my_clients:
-        await c.get_socket().send(json.dumps({"unregister": tmpid}))
     
     if DEBUG:
         print('- removed old client!')
@@ -86,7 +81,8 @@ async def per_client_handler(client_ws, path):
             
             # Add the client's unique id to the message before
             # sending to everyone.
-            rcvd_data["id"] = me.get_id()
+            rcvd_data['id'] = me.get_id()
+            print(rcvd_data['color'])
 
             # Send received message to all *other* clients.
             for client in my_clients:
@@ -96,8 +92,6 @@ async def per_client_handler(client_ws, path):
                     
                     if DEBUG: 
                         print('sent ' + json.dumps(rcvd_data) + ' to client ' + str(client.id) + '\n')
-    except websocket.exceptions.ConnectionClosedOK:
-        pass
     finally:
         await unregister_client(me)
 

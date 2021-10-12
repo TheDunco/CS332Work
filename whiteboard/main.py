@@ -32,31 +32,30 @@ class Mousedata:
     struct = {
         'x': 0,
         'y': 0,
-        'color': 'yellow'
+        'color': 'yellow',
+        'id': 0
     }
     
-    id = 0
-    
-    def __init__(self, id, x, y, color):
-        self.id = id
-        self.struct.x = x
-        self.struct.y = y
-        self.struct.color = color
+    def __init__(self, iD, x, y, color):
+        self.struct['id'] = iD
+        self.struct['x'] = x
+        self.struct['y'] = y
+        self.struct['color'] = color
         
     def get_id(self):
-        return self.id
+        return self.struct['id']
         
     def get_mouse_dict(self):
         return self.struct
         
     def get_x(self):
-        return self.struct.x
+        return self.struct['x']
         
     def get_y(self):
-        return self.struct.y
+        return self.struct['y']
         
     def get_color(self):
-        return self.struct.color
+        return self.struct['color']
         
     def update_dict_x(self, new_x):
         self.struct['x'] = new_x
@@ -67,13 +66,16 @@ class Mousedata:
     def update_dict_color(self, new_color):
         self.struct['color'] = new_color
         
+    def update_full_dict(self, newdict):
+        self.struct = newdict
+        
     def set_none_color(self):
         self.struct['color'] = None
         
 
 # Store last_x and last_y values *for each client* in some data structure
 #                              id  x  y  color
-client_mouse_data = [ Mousedata(0, 0, 0, "black") ]
+client_mouse_data = [ Mousedata(0, 0, 0, "orange") ]
 
 
 def send_data_to_server(penIsDown):
@@ -95,7 +97,7 @@ def send_data_to_server(penIsDown):
             print('error sending data')
     
     
-def update_mouse_data(cid, x, y, color = color_choice):
+def update_mouse_data(cid, x, y, color):
     global client_mouse_data
     
     client_mouse_data[cid].update_dict_x(x)
@@ -122,7 +124,7 @@ def handle_mousemove(ev: DOMEvent):
         ctx.beginPath()
         ctx.moveTo(my_lastx, my_lasty)
         # update our dictionary
-        update_mouse_data(0, my_lastx, my_lasty)
+        update_mouse_data(0, my_lastx, my_lasty, color_choice)
         # send data to server (pen up)
         send_data_to_server(False)
     else:
@@ -134,7 +136,7 @@ def handle_mousemove(ev: DOMEvent):
         # Store new (x, y) as the last point.
         my_lastx = ev.x
         my_lasty = ev.y
-        update_mouse_data(0, my_lastx, my_lasty)
+        update_mouse_data(0, my_lastx, my_lasty, color_choice)
 
 
 def on_mesg_recv(evt):
@@ -144,32 +146,46 @@ def on_mesg_recv(evt):
     handle_other_client_data(data)
 
 
-def register_or_unregister_client(data):
-    '''If the data includes an unregister field, remove that client from our list
-    as we don't have to keep track of it anymore. Otherwise, if there is a new client, start keeping track of it.
-    Returns None if we unregistered a client and no further action is to be taken, returns the client we'll be
-    drawing with (whether that be the new one or the one with selected id) otherwise'''
+# This was just a hopeless cause. I don't have enough time to debug this further so I abandoned this. Leaving it here
+#   to display my intent and effort. I decided that for the purposes of this application, it doesn't matter if you unregister
+#   the other clients from your list or not. Sure if there are bonkers amounts of other clients it will take up a lot of memory
+#   but that's just the cost of simplicity.
+# def register_or_unregister_client(data):
+#     '''If the data includes an unregister field, remove that client from our list
+#     as we don't have to keep track of it anymore. Otherwise, if there is a new client, start keeping track of it.
+#     Returns None if we unregistered a client and no further action is to be taken, returns the client we'll be
+#     drawing with (whether that be the new one or the one with selected id) otherwise'''
     
-    # if there is something to unregister, remove that client from our midst
-    if data.has_key('unregister'):
-        for c in client_mouse_data:
-            if c.get_id() == data.unregister:
-                client_mouse_data.remove(c)
-                return None
-                
-    # if there is a new client, register it. Loop based off of this example...
-    # https://thispointer.com/python-how-to-check-if-an-item-exists-in-list-search-by-value-or-condition/
-    if not any(mouse_data.get_id() == data['id'] for mouse_data in client_mouse_data):
-        new_client = Mousedata(data['id'], data['x'], data['y'], data['color'])
-        client_mouse_data.append(new_client)
-        return new_client
+#     print('checking if data has unregister key')
+#     try:
+#         # if there is something to unregister, remove that client from our midst
+#         if data['unregister'] > 0:
+#             print('data has unregister key')
+#             for c in client_mouse_data:
+#                 print('checking client ' + c)
+#                 if c.get_id() == data['unregister']:
+#                     print('removing clinet ' + c)
+#                     client_mouse_data.remove(c)
+#                     return None
+#     except Exception as err:
+#         print("Data does not have that property!" + err)
         
-    # if we didn't do anything, all is normal, so we'll be drawing from the client 
-    for c in client_mouse_data:
-        if c.get_id() == data['id']:
-            return c
-    else:
-        return None
+                
+#     print('seeing if there is a new client')
+#     # if there is a new client, register it. Loop based off of this example...
+#     # https://thispointer.com/python-how-to-check-if-an-item-exists-in-list-search-by-value-or-condition/
+#     if not any(mouse_data.get_id() == data['id'] for mouse_data in client_mouse_data):
+#         new_client = Mousedata(data['id'], data['x'], data['y'], data['color'])
+#         client_mouse_data.append(new_client)
+#         return new_client
+        
+#     print('getting out of here and drawing from the client')
+#     # if we didn't do anything, all is normal, so we'll be drawing from the client 
+#     for c in client_mouse_data:
+#         if c.get_id() == data['id']:
+#             return c
+#     else:
+#         return None
 
 def handle_other_client_data(data):
     # TODO: you, gentle student, need to provide the code here. It is
@@ -179,27 +195,57 @@ def handle_other_client_data(data):
         print(data)
     
     global ctx
-        
-    our_client = register_or_unregister_client(data)
+    # init our_client
+    our_client = client_mouse_data[0]
     
-    if not our_client == None: # if we didn't unregister a client...
-        if our_client.get_color() is None: # pen is up
+    if DEBUG:
+        print('looking for client')
+    found_client = False
+    c_index = 0
+    # find the client we're dealing with
+    for c in client_mouse_data:
+        if c.get_id() == data['id']:
+            our_client = c
+            found_client = True
+            break
+        c_index += 1
+    
+    if DEBUG:
+        print('adding new client')
+    # we didn't have this client before
+    if not found_client:
+        our_client = Mousedata(data['id'], data['x'], data['y'], data['color'])
+        client_mouse_data.append(our_client)
+    else:
+        # we did find a client, update it's info
+        our_client.update_full_dict(data)
+        client_mouse_data[c_index] = our_client
+        
+    if DEBUG:
+        print('drawing from client ' + our_client.get_id())
+    # draw what the client has/move to where it should be
+    if not our_client == None: # make sure we have a valid client to draw with
+        if DEBUG:
+            print('we have a valid client', type(our_client))
+        if our_client.get_color() == None: # pen is up
+            if DEBUG:
+                print('none color')
             ctx.beginPath()
             ctx.moveTo(our_client.get_x(), our_client.get_y())
-            # update our dictionary
-            update_mouse_data(our_client.get_id(), our_client.get_x(), our_client.get_y(), our_client.get_color())
         else: # pen is down
-            ctx.lineTo(our_client.get_(), our_client.get_y())
+            if DEBUG:
+                print(our_client.get_color())
+            ctx.lineTo(our_client.get_x(), our_client.get_y())
             ctx.strokeStyle = our_client.get_color()
             ctx.stroke()
-            # Store new (x, y) as the last point.
-            update_mouse_data(our_client.get_id(), our_client.get_x(), our_client.get_y(), our_client.get_color())
         
 
 def set_color(evt):
     global color_choice
     # Get the value of the input box:
     color_choice = document['color_input'].value
+    # update the local clients data with color choice
+    client_mouse_data[0].update_dict_color(color_choice)
     # print('color_choice is now', color_choice)
 
 
@@ -242,3 +288,43 @@ ws = websocket.WebSocket(f"ws://{server_ip}:{SERVER_PORT}/")
 ws.bind('message', on_mesg_recv)
 if DEBUG:
     print("bound websocket")
+
+
+
+################################################################################
+'''Question answers!'''
+# What would you have to change in the protocol if you wanted to allow a user to:
+# - erase areas
+'''In order to be able to erase areas from the whiteboard, you would most likely
+want to include a brush size attribute in the JSON/dicionaries. This would be set
+by a UI element such as a slider. You would also have to include a flag (boolean) 
+of some sort in order to indicate to the other clients that you are erasing that
+area instead of just moving the cursor (assuming that in order to erase an area 
+you'd actually want the color to be  None.)'''
+# - write text
+'''In order to write text to the whiteboard, I feel like you could do it without
+adding anything if you had the time. All it would consist of is figuring out how
+to draw said text with individual x,y coordinates that could be macro recorded get
+and idea of how to make each letter. This is basically making your own font, which
+is not ideal. Therefore, if you wanted to do it without doing this, assuming there 
+is a library that allows you to actually write text to the whiteboard efficiently, 
+all you would need to do is add a "text" attribute/key that replaces the "x" and "y"
+attributes for each message. The text could be entered in a text box on the sending
+client and once the use hits enter it could be sent to all other clients. You could 
+combine this with the erasing scheme in order to be able to backspace and/or send the 
+messages live as the sending client types and not have to worry about writing over 
+letters the sending client has backspaced/deleted'''
+# - take (and release) control of the whiteboard
+'''In order to pull this off, you would have to add an id field for the client in 
+control who is in control that would be authoritatively set by the server. This 
+meaning that the clients would have to negotiate with the server in order to determine
+who has control of the whiteboard. If one client releases control of the whiteboard 
+(i.e. sets the id field to -1 or something), the server could see that and accept the next 
+or queued request for control from the other clients (most likely the server would ignore
+other requests  or queue only one request for control instead of queuing them all so the 
+clients would simply have to ask the server again or the latest one to ask for control would
+get it). The clients could request control by clicking on a button that sends a message to 
+the server with their id as the "in control" id. The ACK from the server would come in the 
+form of the next message that gets sent to all the clients: if it has the requesting client's 
+id as the "in control" field, the request was accepted, otherwise it was not'''
+################################################################################
