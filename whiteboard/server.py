@@ -58,7 +58,6 @@ def register_new_client(client):
 async def unregister_client(client):
     '''Remove a client from my list of clients'''
     
-    print('removing client from list')
     my_clients.remove(client)
     
     if DEBUG:
@@ -109,10 +108,10 @@ def getNetworkIp():
 
 # Run websocket server on port PORT on the local loopback interface while you are
 # still debugging your own code.
-start_server = websockets.serve(per_client_handler, "localhost", PORT)
+# start_server = websockets.serve(per_client_handler, "localhost", PORT)
 # TODO: use this next line when you are ready to deploy and test your code with others.
 # (And comment out the line above.)
-# start_server = websockets.serve(per_client_handler, getNetworkIp(), PORT)
+start_server = websockets.serve(per_client_handler, getNetworkIp(), PORT)
 
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
