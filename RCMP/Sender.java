@@ -32,10 +32,12 @@ public class Sender {
     Integer port = 22222;
     
     public static void main(String[] args) {
-        parseArgs(args);
+        Sender sender = new Sender();
+        sender.parseArgs(args);
+        sender.sendFile();
     }   
      
-    private void parseArgs() {
+    private void parseArgs(String[] args) {
         for (int i = 0; i < args.length; i++) {
             try {
                 switch (args[i]) {
@@ -72,7 +74,10 @@ public class Sender {
         );
     }
     
-    
+    private void sendFile() {
+        if (this.verbose)
+            Util.println("Sending file...");
+    }
 }
 
 

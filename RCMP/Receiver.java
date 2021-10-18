@@ -31,10 +31,12 @@ public class Receiver {
     Integer port = 22222;
     
     public static void main(String[] args) {
-        parseArgs(args);
+        Receiver receiver = new Receiver();
+        receiver.parseArgs(args);
+        receiver.receiveFile();
     }   
      
-    private void parseArgs() {
+    private void parseArgs(String[] args) {
         for (int i = 0; i < args.length; i++) {
             try {
                 switch (args[i]) {
@@ -71,7 +73,10 @@ public class Receiver {
         );
     }
     
-    
+    private void receiveFile() {
+        if (this.verbose) 
+            Util.println("Waiting to receive file");
+    }
 }
 
 // utility print functions to save my fingers and improve readability
