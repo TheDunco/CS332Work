@@ -44,7 +44,8 @@ public class Sender {
     }
     
     private void parseArgs(String[] args) {
-        if (args.length < 2) {
+        // need port, dest, file * 2 for flags
+        if (args.length < 6) {
             displayUsageErrorMessage();
         }
         for (int i = 0; i < args.length; i++) {
@@ -61,6 +62,7 @@ public class Sender {
                         break;
                         
                     case "--filename":
+                    case "--file":
                     case "-fn":
                     case "-n":
                         this.filename = args[i+1];
@@ -70,7 +72,12 @@ public class Sender {
                     case "--dest":
                     case "-d":
                         this.destination = InetAddress.getByName(args[i+1]);
-                
+                        break;
+                        
+                    case "--help":
+                        displayUsageErrorMessage();
+                        break;
+                        
                     default:
                         break;
                 }
@@ -93,7 +100,7 @@ public class Sender {
     public static void displayUsageErrorMessage() {
         PrintUtil.fault(
             "Usage: java Sender.java --hostname <ip address/hostname> --port <port> --filename <file name>\n" +
-            "Also supported are --verbose\n"
+            "Also supported are -v (--verbose)"
         );
     }
     
@@ -145,17 +152,24 @@ public class Sender {
             // for each character in the file
             for (int i = 0; i < PACKETSIZE; i++) {
                 if (i == (PACKETSIZE - 1)) {
-                    DatagramPacket sendPacket = new DatagramPacket(buffer, buffer.length, this.destination, this.port);
-                    this.Udp.send(sendPacket);
+                    // make and send a DatagramPacket with our buffer
+                    // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
+                    this.Udp.send(
+                        new DatagramPacket(
+                            buffer, buffer.length, this.destination, this.port
+                        )
+                    );
+                    
+                    // TODO: clear buffer or the last packet will not have correct data in it
                     i = 0;
                     continue;
                 }
-                buffer[i] = sendData[i];
+                buffer[i] = sendData[i]; // TODO: This is getting an index error! at 50!
             }
         }
         catch (Exception e) {
             PrintUtil.println("There was an error sending a packet");
-            PrintUtil.debugln(e.getStackTrace().toString(), this.verbose);  
+            PrintUtil.exception(e, this.verbose);  
         }
     }
 }
@@ -165,19 +179,17 @@ public class Sender {
 class PrintUtil {
     
     public static void exception(Exception e, boolean debug) {
-        if (debug) {
+        if (debug)
             e.printStackTrace();
-        }
     }
     public static void debugln(String message, boolean debug) {
-        if (debug) {
+        if (debug)
             PrintUtil.println(message);
-        }
+
     }
     public static void debug(String message, boolean debug) {
-        if (debug) {
+        if (debug)
             PrintUtil.print(message);
-        }
     }
     public static void println(String message) {
         System.out.println(message);
