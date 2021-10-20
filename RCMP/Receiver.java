@@ -75,12 +75,23 @@ public class Receiver {
     
     private void receiveFile() {
         if (this.verbose) 
-            Util.println("Waiting to receive file");
+        PrintUtil.println("Waiting to receive file");
     }
 }
 
 // utility print functions to save my fingers and improve readability
-class Util {
+class PrintUtil {
+    
+    public static void debugln(String message, boolean debug) {
+        if (debug) {
+            PrintUtil.println(message);
+        }
+    }
+    public static void debug(String message, boolean debug) {
+        if (debug) {
+            PrintUtil.print(message);
+        }
+    }
     public static void println(String message) {
         System.out.println(message);
         System.out.flush();
