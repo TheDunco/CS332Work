@@ -12,10 +12,12 @@
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Scanner;
-
+import java.util.concurrent.TimeUnit;
 // Prof. Norman's Imports
 import java.io.File;
 import java.net.DatagramSocket;
@@ -31,6 +33,7 @@ import java.io.FileNotFoundException;
 public class Sender {
     public final static int PACKETSIZE = 1450;
     private boolean verbose = false;
+    private boolean progress = false;
     private String filename = "";
     private Integer port = 22222;
     private DatagramSocket Udp;
@@ -65,17 +68,32 @@ public class Sender {
                     case "--file":
                     case "-fn":
                     case "-n":
+                    case "-f":
                         this.filename = args[i+1];
                         break;
                         
                     case "--destination":
                     case "--dest":
                     case "-d":
-                        this.destination = InetAddress.getByName(args[i+1]);
+                    case "--hostname":
+                    case "--host":
+                    case "-h":
+                        try {
+                            this.destination = InetAddress.getByName(args[i+1]);
+                        }
+                        catch (UnknownHostException e) {
+                            PrintUtil.exception(e, this.verbose);
+                        }
                         break;
                         
                     case "--help":
                         displayUsageErrorMessage();
+                        break;
+                        
+                    case "--progress":
+                    case "-prog":
+                    case "-bar":
+                        this.progress = true;
                         break;
                         
                     default:
@@ -100,7 +118,7 @@ public class Sender {
     public static void displayUsageErrorMessage() {
         PrintUtil.fault(
             "Usage: java Sender.java --hostname <ip address/hostname> --port <port> --filename <file name>\n" +
-            "Also supported are -v (--verbose)"
+            "Also supported are -v (--verbose) and --progress (-p) to show the progress bar"
         );
     }
     
@@ -110,9 +128,11 @@ public class Sender {
         
         String file = readInFile();
         
+        PrintUtil.debugln("Sending file...", this.verbose);
+        
         splitAndSend(file);
         
-        PrintUtil.debugln("Sending file...", this.verbose);
+        PrintUtil.debugln("File sent", this.verbose);
     }
     
     // adapted from...
@@ -121,9 +141,17 @@ public class Sender {
         StringBuilder file = new StringBuilder();
         
         try {
+            PrintUtil.debugln(this.filename, this.verbose);
+            
             File localFile = new File(this.filename);
+            
+            PrintUtil.debugln("Created file from name", this.verbose);
+            
             Scanner myReader = new Scanner(localFile);
             
+            PrintUtil.debugln("Created reader", this.verbose);
+            
+            PrintUtil.debugln("Start reading", this.verbose);
             // read in entire file into string
             while (myReader.hasNextLine()) {
                 file.append(myReader.nextLine());
@@ -140,37 +168,81 @@ public class Sender {
             PrintUtil.fault("There was an unknown error reading in the file");
         }
         
+        PrintUtil.debugln("Read file complete", this.verbose);
         return file.toString();
     }
     
+    /* Splits up a file into packets and sends those packets as it goes
+    * @param String file: The file data to send
+    */
     public void splitAndSend(String file) {
         try {
             // allocate a buffer to use for each packet
             byte buffer[] = new byte[PACKETSIZE];
             byte[] sendData = file.getBytes("UTF-8");
             
-            // for each character in the file
-            for (int i = 0; i < PACKETSIZE; i++) {
-                if (i == (PACKETSIZE - 1)) {
-                    // make and send a DatagramPacket with our buffer
-                    // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
-                    this.Udp.send(
-                        new DatagramPacket(
-                            buffer, buffer.length, this.destination, this.port
-                        )
-                    );
-                    
-                    // TODO: clear buffer or the last packet will not have correct data in it
-                    i = 0;
-                    continue;
+            int fIndex = 0; // our place in the file
+            int pIndex = 0; // our place in the packet
+            
+            long total = sendData.length;
+            long startTime = System.currentTimeMillis();
+            
+            while (pIndex < PACKETSIZE) {
+                PrintUtil.debugln("Top of loop(" + pIndex + ")[" + fIndex + "] ", this.verbose);
+                try {
+                    if (fIndex == sendData.length - 1) {
+                        // we have reached the end of the file, send what we have left and stop
+                        UdpSend(buffer);
+                        break;
+                    }
+                    if (pIndex == (PACKETSIZE) - 1) {
+                        PrintUtil.debugln("Sending packet", this.verbose);
+                        UdpSend(buffer);
+                        
+                        // clear buffer or the last packet will not have correct data in it
+                        PrintUtil.debugln("Clearing buffer", this.verbose);
+                        // Arrays.fill(buffer, (byte)0);
+                        
+                        // reset our place in the packet to 0
+                        PrintUtil.debugln("Resetting loop", this.verbose);
+                        pIndex = 0; 
+                        continue;
+                    }
+                    buffer[pIndex] = sendData[fIndex];
+                    PrintUtil.debugln("buffer[" + pIndex + "]: " + buffer[pIndex] + " |:| sendData[" + fIndex + "]: " + sendData[fIndex], this.verbose);
+                    pIndex++;
+                    fIndex++;
+                    PrintUtil.printProgress(startTime, total, fIndex + 1, this.progress);
                 }
-                buffer[i] = sendData[i]; // TODO: This is getting an index error! at 50!
+                catch (Exception e) {
+                    PrintUtil.exception(e, this.verbose);
+                    PrintUtil.debugln("Done sending file?", this.verbose);
+                    break;
+                }
             }
         }
         catch (Exception e) {
             PrintUtil.println("There was an error sending a packet");
-            PrintUtil.exception(e, this.verbose);  
+            PrintUtil.exception(e, this.verbose);
         }
+        PrintUtil.pad();
+    }
+    
+    private void UdpSend(byte[] buffer) {
+        PrintUtil.debugln("Attempting to send over UDP...", this.verbose);
+        // make and send a DatagramPacket with our buffer
+        // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
+        try {
+            this.Udp.send(
+                new DatagramPacket(
+                    buffer, buffer.length, this.destination, this.port
+                )
+            );
+        } 
+        catch (IOException ioe) {
+            PrintUtil.exception(ioe, this.verbose);
+        }
+        PrintUtil.debugln("UDP message sent", this.verbose);
     }
 }
 
@@ -178,19 +250,29 @@ public class Sender {
 // utility print functions to save my fingers and improve readability
 class PrintUtil {
     
+    public static void flush() {
+        System.out.flush();
+    }
+    
+    public static void pad() {
+        System.out.println("\n");
+    }
+    
     public static void exception(Exception e, boolean debug) {
         if (debug)
             e.printStackTrace();
     }
+    
     public static void debugln(String message, boolean debug) {
         if (debug)
             PrintUtil.println(message);
-
     }
+    
     public static void debug(String message, boolean debug) {
         if (debug)
             PrintUtil.print(message);
     }
+    
     public static void println(String message) {
         System.out.println(message);
         System.out.flush();
@@ -206,4 +288,36 @@ class PrintUtil {
         System.err.flush();
         System.exit(0);
     }
+    
+    // Thanks a TON to Mike Shauneu on StackOverflow for providing this awesome code.
+    // https://stackoverflow.com/questions/1001290/console-based-progress-in-java
+    // https://stackoverflow.com/users/4503311/mike-shauneu
+    public static void printProgress(long startTime, long total, long current, boolean debug) {
+        if (debug) {
+            long eta = current == 0 ? 0 : 
+                (total - current) * (System.currentTimeMillis() - startTime) / current;
+        
+            String etaHms = current == 0 ? "N/A" : 
+                    String.format("%02d:%02d:%02d", TimeUnit.MILLISECONDS.toHours(eta),
+                            TimeUnit.MILLISECONDS.toMinutes(eta) % TimeUnit.HOURS.toMinutes(1),
+                            TimeUnit.MILLISECONDS.toSeconds(eta) % TimeUnit.MINUTES.toSeconds(1));
+        
+            StringBuilder string = new StringBuilder(140);   
+            int percent = (int) (current * 100 / total);
+            string
+                .append('\r')
+                .append(String.join("", Collections.nCopies(percent == 0 ? 2 : 2 - (int) (Math.log10(percent)), " ")))
+                .append(String.format(" %d%% [", percent))
+                .append(String.join("", Collections.nCopies(percent, "=")))
+                .append('>')
+                .append(String.join("", Collections.nCopies(100 - percent, " ")))
+                .append(']')
+                .append(String.join("", Collections.nCopies(current == 0 ? (int) (Math.log10(total)) : (int) (Math.log10(total)) - (int) (Math.log10(current)), " ")))
+                .append(String.format(" %d/%d, ETA: %s", current, total, etaHms));
+        
+            System.out.print(string);
+        }
+    }
 }
+
+
