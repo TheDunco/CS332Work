@@ -38,6 +38,7 @@ public class Sender {
     private Integer port = 22222;
     private DatagramSocket Udp;
     private InetAddress destination;
+    private long fileSize = 0;
     
     public static void main(String[] args) {
         Sender sender = new Sender();
@@ -138,16 +139,17 @@ public class Sender {
     // adapted from...
     // https://www.w3schools.com/java/java_files_read.asp
     private String readInFile() {
-        StringBuilder file = new StringBuilder();
-        
+        StringBuilder fileString = new StringBuilder();
+        File file = new File(this.filename);
+        this.fileSize = file.length();
         // derived from example at https://mkyong.com/java/how-to-read-file-in-java-fileinputstream/
-        try (FileInputStream fis = new FileInputStream(new File(this.filename))) {
+        try (FileInputStream fis = new FileInputStream(file)) {
             PrintUtil.debugln(this.filename, this.verbose);
             
             int content;
             // reads a byte at a time, if it reached end of the file, returns -1
             while ((content = fis.read()) != -1) {
-                file.append(content);
+                fileString.append(content);
             }
         }
         catch (FileNotFoundException e) {
@@ -160,7 +162,7 @@ public class Sender {
         }
         
         PrintUtil.debugln("Read file complete", this.verbose);
-        return file.toString();
+        return fileString.toString();
     }
     
     /* Splits up a file into packets and sends those packets as it goes
@@ -172,39 +174,22 @@ public class Sender {
             byte buffer[] = new byte[PACKETSIZE];
             byte[] sendData = file.getBytes("UTF-8");
             
-            int fIndex = 0; // our place in the file
-            int pIndex = 0; // our place in the packet
-            
-            long total = sendData.length;
             long startTime = System.currentTimeMillis();
             
-            while (pIndex < PACKETSIZE) {
-                try {
-                    if (fIndex == sendData.length - 1) {
-                        // we have reached the end of the file, send what we have left and stop
-                        UdpSend(buffer);
-                        break;
-                    }
-                    if (pIndex == (PACKETSIZE) - 1) {
-                        UdpSend(buffer);
-                        
-                        // clear buffer or the last packet will not have correct data in it
-                        Arrays.fill(buffer, (byte)0);
-                        
-                        // reset our place in the packet to 0
-                        pIndex = 0; 
-                        continue;
-                    }
-                    buffer[pIndex] = sendData[fIndex];
-                    pIndex++;
-                    fIndex++;
-                    PrintUtil.printProgress(startTime, total, fIndex + 1, this.progress);
+            int numPackets = (int) (this.fileSize / PACKETSIZE);
+            PrintUtil.debugln("NumPackets: " + numPackets, this.verbose);
+            
+            // send the file in chunks of size packetSize
+            try {
+                for(int i = 0; i < this.fileSize; i += PACKETSIZE) {
+                    buffer = Arrays.copyOfRange(sendData, i, i + PACKETSIZE);
+                    UdpSend(buffer);
+                    PrintUtil.printProgress(startTime, this.fileSize, i + PACKETSIZE, this.progress);
                 }
-                catch (Exception e) {
-                    PrintUtil.exception(e, this.verbose);
-                    PrintUtil.debugln("Done sending file?", this.verbose);
-                    break;
-                }
+            }
+            catch (Exception e) {
+                PrintUtil.exception(e, this.verbose);
+                PrintUtil.debugln("Done sending file?", this.verbose);
             }
         }
         catch (Exception e) {
@@ -215,7 +200,6 @@ public class Sender {
     }
     
     private void UdpSend(byte[] buffer) {
-        PrintUtil.debugln("Attempting to send over UDP...", this.verbose);
         // make and send a DatagramPacket with our buffer
         // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
         try {
@@ -228,7 +212,6 @@ public class Sender {
         catch (IOException ioe) {
             PrintUtil.exception(ioe, this.verbose);
         }
-        PrintUtil.debugln("UDP message sent", this.verbose);
     }
 }
 
