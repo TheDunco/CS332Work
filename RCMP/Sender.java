@@ -140,24 +140,15 @@ public class Sender {
     private String readInFile() {
         StringBuilder file = new StringBuilder();
         
-        try {
+        // derived from example at https://mkyong.com/java/how-to-read-file-in-java-fileinputstream/
+        try (FileInputStream fis = new FileInputStream(new File(this.filename))) {
             PrintUtil.debugln(this.filename, this.verbose);
             
-            File localFile = new File(this.filename);
-            
-            PrintUtil.debugln("Created file from name", this.verbose);
-            
-            Scanner myReader = new Scanner(localFile);
-            
-            PrintUtil.debugln("Created reader", this.verbose);
-            
-            PrintUtil.debugln("Start reading", this.verbose);
-            // read in entire file into string
-            while (myReader.hasNextLine()) {
-                file.append(myReader.nextLine());
+            int content;
+            // reads a byte at a time, if it reached end of the file, returns -1
+            while ((content = fis.read()) != -1) {
+                file.append(content);
             }
-            
-            myReader.close();
         }
         catch (FileNotFoundException e) {
             PrintUtil.exception(e, this.verbose);
@@ -188,7 +179,6 @@ public class Sender {
             long startTime = System.currentTimeMillis();
             
             while (pIndex < PACKETSIZE) {
-                PrintUtil.debugln("Top of loop(" + pIndex + ")[" + fIndex + "] ", this.verbose);
                 try {
                     if (fIndex == sendData.length - 1) {
                         // we have reached the end of the file, send what we have left and stop
@@ -196,20 +186,16 @@ public class Sender {
                         break;
                     }
                     if (pIndex == (PACKETSIZE) - 1) {
-                        PrintUtil.debugln("Sending packet", this.verbose);
                         UdpSend(buffer);
                         
                         // clear buffer or the last packet will not have correct data in it
-                        PrintUtil.debugln("Clearing buffer", this.verbose);
-                        // Arrays.fill(buffer, (byte)0);
+                        Arrays.fill(buffer, (byte)0);
                         
                         // reset our place in the packet to 0
-                        PrintUtil.debugln("Resetting loop", this.verbose);
                         pIndex = 0; 
                         continue;
                     }
                     buffer[pIndex] = sendData[fIndex];
-                    PrintUtil.debugln("buffer[" + pIndex + "]: " + buffer[pIndex] + " |:| sendData[" + fIndex + "]: " + sendData[fIndex], this.verbose);
                     pIndex++;
                     fIndex++;
                     PrintUtil.printProgress(startTime, total, fIndex + 1, this.progress);
