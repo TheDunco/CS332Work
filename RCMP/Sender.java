@@ -10,6 +10,7 @@
 */
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
@@ -146,11 +147,12 @@ public class Sender {
                 int amountSent = 0;
                 while (true) {
                     chunkLen = fin.read(chunk); // read in a chunk of the file
-                    PrintUtil.debugln("" + chunkLen, this.verbose);
-                    
-                    UdpSend(chunk);             // send the chunk over
                     
                     if (chunkLen == -1)  break; // we've reached the end of the file
+                    
+                    // send over however much we read in
+                    UdpSend(Arrays.copyOfRange(chunk, 0, chunkLen)); 
+                    PrintUtil.debugln("" + chunkLen, this.verbose);
                     
                     // update the progress bar
                     amountSent += chunkLen;
@@ -174,7 +176,7 @@ public class Sender {
             PrintUtil.println("There was an error sending a packet");
             PrintUtil.exception(e, this.verbose);
         }
-        PrintUtil.pad();
+        PrintUtil.debugln("Done sending file", this.verbose);
     }
     
     private void UdpSend(byte[] buffer) {
@@ -195,7 +197,7 @@ public class Sender {
 
 
 // utility print functions to save my fingers and improve readability
-class PrintUtil {
+class PrintUtil { 
     
     public static void flush() {
         System.out.flush();

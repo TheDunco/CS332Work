@@ -122,7 +122,7 @@ public class Receiver {
                     fout.write(receivePacket.getData());
                     fout.flush();
                     
-                    PrintUtil.debugln("" + receiveData.length, this.verbose);
+                    PrintUtil.debugln("" + receivePacket.getLength(), this.verbose);
                     if (receivePacket.getLength() < PACKETSIZE) {
                         break;
                     }
@@ -141,7 +141,7 @@ public class Receiver {
             PrintUtil.exception(e, this.verbose);
         }
         
-        PrintUtil.debugln("File sent", this.verbose);
+        PrintUtil.debugln("File received", this.verbose);
     }
     
     private void UdpSend(byte[] buffer, InetAddress address) {
