@@ -118,7 +118,7 @@ public class Receiver {
                     Udp.receive(receivePacket);
                     // PrintUtil.debugln(new String(receivePacket.getData()), this.verbose);
                     
-                    // write out the data to the file
+                    // write out only the data we got to the file
                     fout.write(Arrays.copyOfRange(receivePacket.getData(), 0, receivePacket.getLength()));
                     fout.flush();
                     
