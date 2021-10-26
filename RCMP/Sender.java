@@ -23,11 +23,12 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-
-
+import java.util.Random;
+import java.nio.ByteBuffer;
 
 public class Sender {
     public final static int PACKETSIZE = 1450;
+    public final static int HEADERSIZE = 12;
     private boolean verbose = false;
     private boolean progress = false;
     private String filename = "";
@@ -117,8 +118,32 @@ public class Sender {
     public static void displayUsageErrorMessage() {
         PrintUtil.fault(
             "Usage: java Sender.java --hostname <ip address/hostname> --port <port> --filename <file name>\n" +
-            "Also supported are -v (--verbose) and --progress (-p) to show the progress bar"
+            "Also supported are -v (--verbose) and -prog (--progress) to show the progress bar"
         );
+    }
+
+    /*
+    * The header class is used to make a RCMP header
+    * @param int connectionId
+    * @param int numBytes
+    * @param int packetNumber
+    */
+    class Header {
+        int connectionId;
+        int numBytes;
+        int packetNumber;
+        Header(int connectionId, int numBytes, int packetNumber) {
+            this.connectionId = connectionId;
+            this.numBytes = numBytes;
+            this.packetNumber = packetNumber;
+        }
+        public byte[] getBytes() {
+            StringBuilder sequence = new StringBuilder();
+            sequence.append(this.connectionId);
+            sequence.append(this.numBytes);
+            sequence.append(this.packetNumber);
+            return sequence.toString().getBytes();
+        }
     }
     
     /* Splits up a file into packets and sends those packets as it goes
@@ -145,19 +170,29 @@ public class Sender {
                 FileInputStream fin = new FileInputStream(file);
                 DatagramPacket ack;
                 int ACKLEN = 3;
-                byte[] chunk = new byte[PACKETSIZE];
+                byte[] chunk = new byte[HEADERSIZE + PACKETSIZE];
+                ByteBuffer packet = ByteBuffer.wrap(chunk);
                 byte[] ackBuffer = new byte[ACKLEN];
                 int chunkLen = 0;
                 int amountSent = 0;
                 int packetsSent = 0;
-                
+                int connectionId = new Random().nextInt();
                 while (true) {
+                    
+                    packet.clear();
+                    
                     chunkLen = fin.read(chunk); // read in a chunk of the file
                     
                     if (chunkLen == -1)  break; // we've reached the end of the file
                     
+                    // create a new header
+                    Header header = new Header(connectionId, (int)this.fileSize, packetsSent);
+                    
+                    // add the header to the packet
+                    packet.put(header.getBytes());
+                    
                     // send over however much we read in
-                    UdpSend(Arrays.copyOfRange(chunk, 0, chunkLen)); 
+                    UdpSend(Arrays.copyOfRange(packet.array(), 0, chunkLen)); 
                     packetsSent++;
                     
                     // update the progress bar

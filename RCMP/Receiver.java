@@ -10,8 +10,6 @@
 */
 
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -21,14 +19,14 @@ import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
+import java.util.Random;
+import java.nio.ByteBuffer;
 
 public class Receiver {
     public final static int PACKETSIZE = 1450;
+    public final static int HEADERSIZE = 12;
     private boolean verbose = false;
     private String filename = "";
     private Integer port = 22222;
