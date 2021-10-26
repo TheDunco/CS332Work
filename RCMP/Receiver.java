@@ -24,6 +24,8 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 
 public class Receiver {
     public final static int PACKETSIZE = 1450;
@@ -102,24 +104,36 @@ public class Receiver {
     
     private void receiveFile() {
         
-        PrintUtil.debugln("Reading in file", this.verbose);
+        PrintUtil.debugln("Receiving file...", this.verbose);
         try {
             // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
             byte[] receiveData = new byte[PACKETSIZE];
             byte[] response = new byte[16];
-    
-            while (true) {
-                DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-                Udp.receive(receivePacket);
-                String rcvdData = new String(receivePacket.getData());
-                PrintUtil.debugln("RECEIVED: " + rcvdData, this.verbose);
-                
-                // InetAddress IPAddress = receivePacket.getAddress();
-                // String sendString = "A C K";
-                // response = sendString.getBytes();
-                // DatagramPacket sendPacket = new DatagramPacket(response, response.length, IPAddress, port);
-                // Udp.send(sendPacket);
+            DatagramPacket receivePacket = new DatagramPacket(receiveData, PACKETSIZE);
+            
+            try (FileOutputStream stream = new FileOutputStream(this.filename)) {
+                while (true) {
+                    // receive data
+                    Udp.receive(receivePacket);
+                    // PrintUtil.debugln(new String(receivePacket.getData()), this.verbose);
+                    
+                    // write out the data to the file
+                    stream.write(receivePacket.getData());
+                    PrintUtil.debugln("" + receivePacket.getLength(), this.verbose);
+                    if (receivePacket.getLength() < PACKETSIZE) {
+                        break;
+                    }
+                    
+                    // InetAddress IPAddress = receivePacket.getAddress();
+                    // String sendString = "A C K";
+                    // response = sendString.getBytes();
+                    // DatagramPacket sendPacket = new DatagramPacket(response, response.length, IPAddress, port);
+                    // Udp.send(sendPacket);
+                }
+                stream.close();
             }
+    
+            
         } catch (IOException e) {
             PrintUtil.exception(e, this.verbose);
         }

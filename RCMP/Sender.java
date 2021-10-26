@@ -10,14 +10,9 @@
 */
 
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
+
 // Prof. Norman's Imports
 import java.io.File;
 import java.net.DatagramSocket;
@@ -109,7 +104,7 @@ public class Sender {
     
     public void initUdp() {
         try {
-            this.Udp = new DatagramSocket(this.port);
+            this.Udp = new DatagramSocket();
         }
         catch (SocketException se) {
             PrintUtil.debugln("Error opening UDP socket", this.verbose);
@@ -125,81 +120,46 @@ public class Sender {
         );
     }
     
-    private void sendFile() {
-        
-        PrintUtil.debugln("Reading in file", this.verbose);
-        
-        String file = readInFile();
-        
-        PrintUtil.debugln("Sending file...", this.verbose);
-        
-        splitAndSend(file);
-        
-        PrintUtil.debugln("File sent", this.verbose);
-    }
-    
-    // adapted from...
-    // https://www.w3schools.com/java/java_files_read.asp
-    private String readInFile() {
-        StringBuilder fileString = new StringBuilder();
-        File file = new File(this.filename);
-        this.fileSize = file.length();
-        long startTime = System.currentTimeMillis();
-        // derived from example at https://mkyong.com/java/how-to-read-file-in-java-fileinputstream/
-        try (FileInputStream fis = new FileInputStream(file)) {
-            PrintUtil.debugln(this.filename, this.verbose);
-            
-            int content;
-            int i = 0;
-            // reads a byte at a time, if it reached end of the file, returns -1
-            while ((content = fis.read()) != -1) {
-                fileString.append(content);
-                i++;
-                if (i % 1000 == 0) {
-                    PrintUtil.printProgress(startTime, this.fileSize, i + PACKETSIZE, this.progress);
-                    PrintUtil.flush();
-                }
-            }
-        }
-        catch (FileNotFoundException e) {
-            PrintUtil.exception(e, this.verbose);
-            PrintUtil.fault("File not found!");
-        }
-        catch (Exception e) {
-            PrintUtil.exception(e, this.verbose);
-            PrintUtil.fault("There was an unknown error reading in the file");
-        }
-        
-        PrintUtil.debugln("\nRead file complete", this.verbose);
-        return fileString.toString();
-    }
-    
     /* Splits up a file into packets and sends those packets as it goes
     * @param String file: The file data to send
     */
-    public void splitAndSend(String file) {
+    public void sendFile() {
         try {
-            // allocate a buffer to use for each packet
-            byte buffer[];
-            byte[] sendData = file.getBytes("UTF-8");
             
+            // start time for progress bar estimation
             long startTime = System.currentTimeMillis();
             
-            int numPackets = (int) (this.fileSize / PACKETSIZE);
-            PrintUtil.debugln("NumPackets: " + numPackets, this.verbose);
-            
             // send the file in chunks of size packetSize
+            // file reading based on https://stackoverflow.com/questions/11110153/reading-file-chunk-by-chunk
             try {
-                for(int i = 0; i < this.fileSize; i += PACKETSIZE) {
-                    if (i + PACKETSIZE > sendData.length - 1)
-                        buffer = Arrays.copyOfRange(sendData, i, sendData.length - 1);
-                    else
-                        buffer = Arrays.copyOfRange(sendData, i, i + PACKETSIZE);
+                File file = new File(this.filename);
+                this.fileSize = file.length();
+                FileInputStream fin = new FileInputStream(file);
+                
+                byte[] chunk = new byte[PACKETSIZE];
+                int chunkLen = 0;
+                int amountSent = 0;
+                while (true) {
+                    chunkLen = fin.read(chunk); // read in a chunk of the file
+                    PrintUtil.debugln("" + chunkLen, this.verbose);
+                    
+                    UdpSend(chunk);             // send that chunk over
+                    
+                    if (chunkLen == -1)         // we've reached the end of the file
+                        break;
                         
-                    UdpSend(buffer);
-                    // PrintUtil.debugln("" + buffer.length, this.verbose);
-                    PrintUtil.printProgress(startTime, this.fileSize, i + PACKETSIZE, this.progress);
+                        // update the progress bar
+                    amountSent += chunkLen;
+                    PrintUtil.printProgress(startTime, this.fileSize, amountSent, this.progress);
                 }
+                
+                fin.close();
+            }
+            catch (FileNotFoundException fnfE) {
+                PrintUtil.exception(fnfE, this.verbose);
+            } 
+            catch (IOException ioE) {
+                PrintUtil.exception(ioE, this.verbose);
             }
             catch (Exception e) {
                 PrintUtil.exception(e, this.verbose);
