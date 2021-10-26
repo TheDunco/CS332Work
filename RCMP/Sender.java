@@ -134,6 +134,11 @@ public class Sender {
             try {
                 File file = new File(this.filename);
                 this.fileSize = file.length();
+                
+                // number of packets will be size of file / PACKETSIZE rounded up
+                int numPackets = (int)(((double)this.fileSize / (double)PACKETSIZE) + 0.5);
+                PrintUtil.debugln("Excpected # of packets: " + numPackets, this.verbose);
+                
                 FileInputStream fin = new FileInputStream(file);
                 
                 byte[] chunk = new byte[PACKETSIZE];
@@ -143,12 +148,11 @@ public class Sender {
                     chunkLen = fin.read(chunk); // read in a chunk of the file
                     PrintUtil.debugln("" + chunkLen, this.verbose);
                     
-                    UdpSend(chunk);             // send that chunk over
+                    UdpSend(chunk);             // send the chunk over
                     
-                    if (chunkLen == -1)         // we've reached the end of the file
-                        break;
-                        
-                        // update the progress bar
+                    if (chunkLen == -1)  break; // we've reached the end of the file
+                    
+                    // update the progress bar
                     amountSent += chunkLen;
                     PrintUtil.printProgress(startTime, this.fileSize, amountSent, this.progress);
                 }

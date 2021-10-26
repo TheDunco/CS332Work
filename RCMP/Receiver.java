@@ -109,17 +109,20 @@ public class Receiver {
             // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
             byte[] receiveData = new byte[PACKETSIZE];
             byte[] response = new byte[16];
-            DatagramPacket receivePacket = new DatagramPacket(receiveData, PACKETSIZE);
+            DatagramPacket receivePacket;
             
-            try (FileOutputStream stream = new FileOutputStream(this.filename)) {
+            try (FileOutputStream fout = new FileOutputStream(this.filename)) {
                 while (true) {
                     // receive data
+                    receivePacket = new DatagramPacket(receiveData, PACKETSIZE);
                     Udp.receive(receivePacket);
                     // PrintUtil.debugln(new String(receivePacket.getData()), this.verbose);
                     
                     // write out the data to the file
-                    stream.write(receivePacket.getData());
-                    PrintUtil.debugln("" + receivePacket.getLength(), this.verbose);
+                    fout.write(receivePacket.getData());
+                    fout.flush();
+                    
+                    PrintUtil.debugln("" + receiveData.length, this.verbose);
                     if (receivePacket.getLength() < PACKETSIZE) {
                         break;
                     }
@@ -130,7 +133,7 @@ public class Receiver {
                     // DatagramPacket sendPacket = new DatagramPacket(response, response.length, IPAddress, port);
                     // Udp.send(sendPacket);
                 }
-                stream.close();
+                fout.close();
             }
     
             
