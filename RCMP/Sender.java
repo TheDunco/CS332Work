@@ -152,7 +152,7 @@ public class Sender {
                     
                     // send over however much we read in
                     UdpSend(Arrays.copyOfRange(chunk, 0, chunkLen)); 
-                    PrintUtil.debugln("" + chunkLen, this.verbose);
+                    // PrintUtil.debugln("" + chunkLen, this.verbose);
                     
                     // update the progress bar
                     amountSent += chunkLen;
@@ -176,6 +176,7 @@ public class Sender {
             PrintUtil.println("There was an error sending a packet");
             PrintUtil.exception(e, this.verbose);
         }
+        if (this.progress) PrintUtil.pad();
         PrintUtil.debugln("Done sending file", this.verbose);
     }
     

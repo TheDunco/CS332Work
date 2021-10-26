@@ -119,10 +119,10 @@ public class Receiver {
                     // PrintUtil.debugln(new String(receivePacket.getData()), this.verbose);
                     
                     // write out the data to the file
-                    fout.write(receivePacket.getData());
+                    fout.write(Arrays.copyOfRange(receivePacket.getData(), 0, receivePacket.getLength()));
                     fout.flush();
                     
-                    PrintUtil.debugln("" + receivePacket.getLength(), this.verbose);
+                    // PrintUtil.debugln("" + receivePacket.getLength(), this.verbose);
                     if (receivePacket.getLength() < PACKETSIZE) {
                         break;
                     }
