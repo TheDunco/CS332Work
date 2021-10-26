@@ -108,21 +108,25 @@ public class Receiver {
         try {
             // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
             byte[] receiveData = new byte[PACKETSIZE];
-            byte[] response = new byte[16];
             DatagramPacket receivePacket;
+            byte[] ack = "ACK".getBytes();
             
             try (FileOutputStream fout = new FileOutputStream(this.filename)) {
                 while (true) {
                     // receive data
                     receivePacket = new DatagramPacket(receiveData, PACKETSIZE);
                     Udp.receive(receivePacket);
-                    // PrintUtil.debugln(new String(receivePacket.getData()), this.verbose);
                     
+                    PrintUtil.debugln("Got data, writing data to file", this.verbose);
                     // write out only the data we got to the file
                     fout.write(Arrays.copyOfRange(receivePacket.getData(), 0, receivePacket.getLength()));
                     fout.flush();
                     
-                    // PrintUtil.debugln("" + receivePacket.getLength(), this.verbose);
+                    // send ack
+                    PrintUtil.debugln("Sending ack", this.verbose);
+                    UdpSend(ack, receivePacket.getAddress(), receivePacket.getPort());
+                    
+                    // we've received the whole file if we get a packet that's smaller than packetsize
                     if (receivePacket.getLength() < PACKETSIZE) {
                         break;
                     }
@@ -144,13 +148,13 @@ public class Receiver {
         PrintUtil.debugln("File received", this.verbose);
     }
     
-    private void UdpSend(byte[] buffer, InetAddress address) {
+    private void UdpSend(byte[] buffer, InetAddress address, int port) {
         // make and send a DatagramPacket with our buffer
         // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
         try {
             this.Udp.send(
                 new DatagramPacket(
-                    buffer, buffer.length, address, this.port
+                    buffer, buffer.length, address, port
                 )
             );
         } 
