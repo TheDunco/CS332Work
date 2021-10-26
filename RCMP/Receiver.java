@@ -84,6 +84,7 @@ public class Receiver {
     public void initUdp() {
         try {
             this.Udp = new DatagramSocket(this.port);
+            // this.Udp.setReuseAddress(true); // this threw InvalidArgumentException
         }
         catch (SocketException se) {
             PrintUtil.debugln("Error opening UDP socket", this.verbose);
@@ -103,6 +104,7 @@ public class Receiver {
         
         PrintUtil.debugln("Reading in file", this.verbose);
         try {
+            // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
             byte[] receiveData = new byte[PACKETSIZE];
             byte[] response = new byte[16];
     
@@ -119,7 +121,7 @@ public class Receiver {
                 // Udp.send(sendPacket);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            PrintUtil.exception(e, this.verbose);
         }
         
         PrintUtil.debugln("File sent", this.verbose);
