@@ -112,7 +112,9 @@ public class Sender {
             this.Udp = new DatagramSocket(this.port);
         }
         catch (SocketException se) {
-            PrintUtil.fault("Error opening UDP socket");
+            PrintUtil.debugln("Error opening UDP socket", this.verbose);
+            PrintUtil.exception(se, this.verbose);
+            PrintUtil.fault();
         }
     }
         
@@ -195,7 +197,7 @@ public class Sender {
                         buffer = Arrays.copyOfRange(sendData, i, i + PACKETSIZE);
                         
                     UdpSend(buffer);
-                    PrintUtil.debugln("" + buffer.length, this.verbose);
+                    // PrintUtil.debugln("" + buffer.length, this.verbose);
                     PrintUtil.printProgress(startTime, this.fileSize, i + PACKETSIZE, this.progress);
                 }
             }
@@ -267,10 +269,16 @@ class PrintUtil {
     public static void fault(String message) {
         System.err.println(message);
         System.err.flush();
-        System.exit(0);
+        fault();
+    }
+    
+    public static void fault() {
+        System.exit(-1);
     }
     
     // Thanks a TON to Mike Shauneu on StackOverflow for providing this awesome code.
+    // Note that the window size of the terminal needs to be big enough to fit the large progress bar.
+    // I couldn't figure out how to make this smaller
     // https://stackoverflow.com/questions/1001290/console-based-progress-in-java
     // https://stackoverflow.com/users/4503311/mike-shauneu
     public static void printProgress(long startTime, long total, long current, boolean debug) {

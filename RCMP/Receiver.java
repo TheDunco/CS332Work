@@ -6,7 +6,7 @@
 *
 * Receiver client will receive a file from the sender
 * 
-* Usage: java Receiver.java --port <port = 12345> --verbose <verbose = false>
+* Usage: java Receiver.java --port <port> --output <filename>
 */
 
 import java.io.IOException;
@@ -51,12 +51,9 @@ import java.io.FileNotFoundException;
 public class Receiver {
     public final static int PACKETSIZE = 1450;
     private boolean verbose = false;
-    private boolean progress = false;
     private String filename = "";
     private Integer port = 22222;
     private DatagramSocket Udp;
-    private InetAddress destination;
-    private long fileSize = 0;
     
     public static void main(String[] args) {
         Receiver receiver = new Receiver();
@@ -66,8 +63,8 @@ public class Receiver {
     }
     
     private void parseArgs(String[] args) {
-        // need port, dest, file * 2 for flags
-        if (args.length < 6) {
+        // need port, outfile * 2 for flags
+        if (args.length < 4) {
             displayUsageErrorMessage();
         }
         for (int i = 0; i < args.length; i++) {
@@ -83,6 +80,8 @@ public class Receiver {
                         this.port = Integer.parseInt(args[i+1]);
                         break;
                         
+                    case "--output":
+                    case "-out":
                     case "--filename":
                     case "--file":
                     case "-fn":
@@ -93,12 +92,6 @@ public class Receiver {
                         
                     case "--help":
                         displayUsageErrorMessage();
-                        break;
-                        
-                    case "--progress":
-                    case "-prog":
-                    case "-bar":
-                        this.progress = true;
                         break;
                         
                     default:
@@ -122,101 +115,44 @@ public class Receiver {
         
     public static void displayUsageErrorMessage() {
         PrintUtil.fault(
-            "Usage: java Sender.java --hostname <ip address/hostname> --port <port> --filename <file name>\n" +
-            "Also supported are -v (--verbose) and --progress (-p) to show the progress bar"
+            "Usage: java Receiver.java --port <port> --output <outputfile name>\n" +
+            "Also supported are -v (--verbose)"
         );
     }
     
     private void receiveFile() {
         
         PrintUtil.debugln("Reading in file", this.verbose);
-        
-        String file = readInFile();
-        
-        PrintUtil.debugln("Sending file...", this.verbose);
-        
-        splitAndSend(file);
+        try {
+            byte[] receiveData = new byte[PACKETSIZE];
+            byte[] response = new byte[16];
+    
+            while (true) {
+                DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+                Udp.receive(receivePacket);
+                String rcvdData = new String(receivePacket.getData());
+                PrintUtil.debugln("RECEIVED: " + rcvdData, this.verbose);
+                
+                // InetAddress IPAddress = receivePacket.getAddress();
+                // String sendString = "A C K";
+                // response = sendString.getBytes();
+                // DatagramPacket sendPacket = new DatagramPacket(response, response.length, IPAddress, port);
+                // Udp.send(sendPacket);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         
         PrintUtil.debugln("File sent", this.verbose);
     }
     
-    // adapted from...
-    // https://www.w3schools.com/java/java_files_read.asp
-    private String readInFile() {
-        StringBuilder fileString = new StringBuilder();
-        File file = new File(this.filename);
-        this.fileSize = file.length();
-        long startTime = System.currentTimeMillis();
-        // derived from example at https://mkyong.com/java/how-to-read-file-in-java-fileinputstream/
-        try (FileInputStream fis = new FileInputStream(file)) {
-            PrintUtil.debugln(this.filename, this.verbose);
-            
-            int content;
-            int i = 0;
-            // reads a byte at a time, if it reached end of the file, returns -1
-            while ((content = fis.read()) != -1) {
-                fileString.append(content);
-                i++;
-                if (i % 1000 == 0) {
-                    PrintUtil.printProgress(startTime, this.fileSize, i + PACKETSIZE, this.progress);
-                    PrintUtil.flush();
-                }
-            }
-        }
-        catch (FileNotFoundException e) {
-            PrintUtil.exception(e, this.verbose);
-            PrintUtil.fault("File not found!");
-        }
-        catch (Exception e) {
-            PrintUtil.exception(e, this.verbose);
-            PrintUtil.fault("There was an unknown error reading in the file");
-        }
-        
-        PrintUtil.debugln("\nRead file complete", this.verbose);
-        return fileString.toString();
-    }
-    
-    /* Splits up a file into packets and sends those packets as it goes
-    * @param String file: The file data to send
-    */
-    public void splitAndSend(String file) {
-        try {
-            // allocate a buffer to use for each packet
-            byte buffer[] = new byte[PACKETSIZE];
-            byte[] sendData = file.getBytes("UTF-8");
-            
-            long startTime = System.currentTimeMillis();
-            
-            int numPackets = (int) (this.fileSize / PACKETSIZE);
-            PrintUtil.debugln("NumPackets: " + numPackets, this.verbose);
-            
-            // send the file in chunks of size packetSize
-            try {
-                for(int i = 0; i < this.fileSize; i += PACKETSIZE) {
-                    buffer = Arrays.copyOfRange(sendData, i, i + PACKETSIZE);
-                    UdpSend(buffer);
-                    PrintUtil.printProgress(startTime, this.fileSize, i + PACKETSIZE, this.progress);
-                }
-            }
-            catch (Exception e) {
-                PrintUtil.exception(e, this.verbose);
-                PrintUtil.debugln("Done sending file?", this.verbose);
-            }
-        }
-        catch (Exception e) {
-            PrintUtil.println("There was an error sending a packet");
-            PrintUtil.exception(e, this.verbose);
-        }
-        PrintUtil.pad();
-    }
-    
-    private void UdpSend(byte[] buffer) {
+    private void UdpSend(byte[] buffer, InetAddress address) {
         // make and send a DatagramPacket with our buffer
         // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
         try {
             this.Udp.send(
                 new DatagramPacket(
-                    buffer, buffer.length, this.destination, this.port
+                    buffer, buffer.length, address, this.port
                 )
             );
         } 
