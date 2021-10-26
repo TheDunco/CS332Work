@@ -133,6 +133,7 @@ public class Sender {
             // send the file in chunks of size packetSize
             // file reading based on https://stackoverflow.com/questions/11110153/reading-file-chunk-by-chunk
             try {
+                // get the file info
                 File file = new File(this.filename);
                 this.fileSize = file.length();
                 
@@ -140,11 +141,16 @@ public class Sender {
                 int numPackets = (int)(((double)this.fileSize / (double)PACKETSIZE) + 0.5);
                 PrintUtil.debugln("Excpected # of packets: " + numPackets, this.verbose);
                 
+                // init vars for reading in, sending, and receiving
                 FileInputStream fin = new FileInputStream(file);
-                
+                DatagramPacket ack;
+                int ACKLEN = 3;
                 byte[] chunk = new byte[PACKETSIZE];
+                byte[] ackBuffer = new byte[ACKLEN];
                 int chunkLen = 0;
                 int amountSent = 0;
+                int packetsSent = 0;
+                
                 while (true) {
                     chunkLen = fin.read(chunk); // read in a chunk of the file
                     
@@ -152,11 +158,19 @@ public class Sender {
                     
                     // send over however much we read in
                     UdpSend(Arrays.copyOfRange(chunk, 0, chunkLen)); 
-                    // PrintUtil.debugln("" + chunkLen, this.verbose);
+                    packetsSent++;
                     
                     // update the progress bar
-                    amountSent += chunkLen;
                     PrintUtil.printProgress(startTime, this.fileSize, amountSent, this.progress);
+                    amountSent += chunkLen;
+                    
+                    // wait for an ack packet if there's still  more to
+                    if (packetsSent < numPackets) {
+                        PrintUtil.debugln("Waiting for ack", this.verbose);
+                        ack = new DatagramPacket(ackBuffer, ACKLEN);
+                        this.Udp.receive(ack);
+                        PrintUtil.println("ACK");
+                    }
                 }
                 
                 fin.close();
