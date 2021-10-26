@@ -142,14 +142,21 @@ public class Sender {
         StringBuilder fileString = new StringBuilder();
         File file = new File(this.filename);
         this.fileSize = file.length();
+        long startTime = System.currentTimeMillis();
         // derived from example at https://mkyong.com/java/how-to-read-file-in-java-fileinputstream/
         try (FileInputStream fis = new FileInputStream(file)) {
             PrintUtil.debugln(this.filename, this.verbose);
             
             int content;
+            int i = 0;
             // reads a byte at a time, if it reached end of the file, returns -1
             while ((content = fis.read()) != -1) {
                 fileString.append(content);
+                i++;
+                if (i % 1000 == 0) {
+                    PrintUtil.printProgress(startTime, this.fileSize, i + PACKETSIZE, this.progress);
+                    PrintUtil.flush();
+                }
             }
         }
         catch (FileNotFoundException e) {
@@ -161,7 +168,7 @@ public class Sender {
             PrintUtil.fault("There was an unknown error reading in the file");
         }
         
-        PrintUtil.debugln("Read file complete", this.verbose);
+        PrintUtil.debugln("\nRead file complete", this.verbose);
         return fileString.toString();
     }
     
@@ -171,7 +178,7 @@ public class Sender {
     public void splitAndSend(String file) {
         try {
             // allocate a buffer to use for each packet
-            byte buffer[] = new byte[PACKETSIZE];
+            byte buffer[];
             byte[] sendData = file.getBytes("UTF-8");
             
             long startTime = System.currentTimeMillis();
@@ -182,8 +189,13 @@ public class Sender {
             // send the file in chunks of size packetSize
             try {
                 for(int i = 0; i < this.fileSize; i += PACKETSIZE) {
-                    buffer = Arrays.copyOfRange(sendData, i, i + PACKETSIZE);
+                    if (i + PACKETSIZE > sendData.length - 1)
+                        buffer = Arrays.copyOfRange(sendData, i, sendData.length - 1);
+                    else
+                        buffer = Arrays.copyOfRange(sendData, i, i + PACKETSIZE);
+                        
                     UdpSend(buffer);
+                    PrintUtil.debugln("" + buffer.length, this.verbose);
                     PrintUtil.printProgress(startTime, this.fileSize, i + PACKETSIZE, this.progress);
                 }
             }
