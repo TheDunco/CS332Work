@@ -27,8 +27,9 @@ import java.util.Random;
 import java.nio.ByteBuffer;
 
 public class Sender {
-    public final static int PACKETSIZE = 1450;
+    public final static int PAYLOADSIZE = 1450;
     public final static int HEADERSIZE = 12;
+    public final static int FULLPCKTSIZE = HEADERSIZE + PAYLOADSIZE;
     private boolean verbose = false;
     private boolean progress = false;
     private String filename = "";
@@ -138,11 +139,13 @@ public class Sender {
             this.packetNumber = packetNumber;
         }
         public byte[] getBytes() {
-            StringBuilder sequence = new StringBuilder();
-            sequence.append(this.connectionId);
-            sequence.append(this.numBytes);
-            sequence.append(this.packetNumber);
-            return sequence.toString().getBytes();
+            byte[] hdrBuf = new byte[HEADERSIZE];
+            ByteBuffer buf = ByteBuffer.wrap(hdrBuf);
+            buf.clear();
+            buf.putInt(this.connectionId);
+            buf.putInt(this.numBytes);
+            buf.putInt(this.packetNumber);
+            return buf.array();
         }
     }
     
@@ -163,14 +166,14 @@ public class Sender {
                 this.fileSize = file.length();
                 
                 // number of packets will be size of file / PACKETSIZE rounded up
-                int numPackets = (int)(((double)this.fileSize / (double)PACKETSIZE) + 0.5);
+                int numPackets = (int)(((double)this.fileSize / (double)PAYLOADSIZE) + 0.5);
                 PrintUtil.debugln("Excpected # of packets: " + numPackets, this.verbose);
                 
                 // init vars for reading in, sending, and receiving
                 FileInputStream fin = new FileInputStream(file);
                 DatagramPacket ack;
                 int ACKLEN = 3;
-                byte[] chunk = new byte[HEADERSIZE + PACKETSIZE];
+                byte[] chunk = new byte[HEADERSIZE + PAYLOADSIZE];
                 ByteBuffer packet = ByteBuffer.wrap(chunk);
                 byte[] ackBuffer = new byte[ACKLEN];
                 int chunkLen = 0;
@@ -181,30 +184,30 @@ public class Sender {
                     
                     packet.clear();
                     
+                    // add a header to the packet
+                    packet.put(
+                        new Header(connectionId, (int)this.fileSize, packetsSent)
+                        .getBytes()
+                    );
+                    
                     chunkLen = fin.read(chunk); // read in a chunk of the file
                     
                     if (chunkLen == -1)  break; // we've reached the end of the file
-                    
-                    // create a new header
-                    Header header = new Header(connectionId, (int)this.fileSize, packetsSent);
-                    
-                    // add the header to the packet
-                    packet.put(header.getBytes());
                     
                     // send over however much we read in
                     UdpSend(Arrays.copyOfRange(packet.array(), 0, chunkLen)); 
                     packetsSent++;
                     
                     // update the progress bar
-                    PrintUtil.printProgress(startTime, this.fileSize, amountSent, this.progress);
                     amountSent += chunkLen;
+                    PrintUtil.printProgress(startTime, this.fileSize, amountSent, this.progress);
                     
                     // wait for an ack packet if there's still  more to
                     if (packetsSent < numPackets) {
                         PrintUtil.debugln("Waiting for ack", this.verbose);
                         ack = new DatagramPacket(ackBuffer, ACKLEN);
                         this.Udp.receive(ack);
-                        PrintUtil.println("ACK");
+                        if (!this.progress) PrintUtil.println("ACK"); // printing ack messes up progbar
                     }
                 }
                 

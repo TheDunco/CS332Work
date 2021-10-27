@@ -25,8 +25,9 @@ import java.util.Random;
 import java.nio.ByteBuffer;
 
 public class Receiver {
-    public final static int PACKETSIZE = 1450;
+    public final static int PAYLOADSIZE = 1450;
     public final static int HEADERSIZE = 12;
+    public final static int FULLPCKTSIZE = HEADERSIZE + PAYLOADSIZE;
     private boolean verbose = false;
     private String filename = "";
     private Integer port = 22222;
@@ -105,18 +106,18 @@ public class Receiver {
         PrintUtil.debugln("Receiving file...", this.verbose);
         try {
             // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
-            byte[] receiveData = new byte[PACKETSIZE];
+            byte[] receiveData = new byte[FULLPCKTSIZE];
             DatagramPacket receivePacket;
             byte[] ack = "ACK".getBytes();
             
             try (FileOutputStream fout = new FileOutputStream(this.filename)) {
                 while (true) {
                     // receive data
-                    receivePacket = new DatagramPacket(receiveData, PACKETSIZE);
+                    receivePacket = new DatagramPacket(receiveData, FULLPCKTSIZE);
                     Udp.receive(receivePacket);
                     
                     PrintUtil.debugln("Got data, writing data to file", this.verbose);
-                    // write out only the data we got to the file
+                    // write out only the data we got in the payload to the file
                     fout.write(Arrays.copyOfRange(receivePacket.getData(), 0, receivePacket.getLength()));
                     fout.flush();
                     
@@ -125,7 +126,7 @@ public class Receiver {
                     UdpSend(ack, receivePacket.getAddress(), receivePacket.getPort());
                     
                     // we've received the whole file if we get a packet that's smaller than packetsize
-                    if (receivePacket.getLength() < PACKETSIZE) {
+                    if (receivePacket.getLength() < FULLPCKTSIZE) {
                         break;
                     }
                     
