@@ -123,31 +123,31 @@ public class Sender {
         );
     }
 
-    /*
-    * The header class is used to make a RCMP header
-    * @param int connectionId
-    * @param int numBytes
-    * @param int packetNumber
-    */
-    class Header {
-        int connectionId;
-        int numBytes;
-        int packetNumber;
-        Header(int connectionId, int numBytes, int packetNumber) {
-            this.connectionId = connectionId;
-            this.numBytes = numBytes;
-            this.packetNumber = packetNumber;
-        }
-        public byte[] getBytes() {
-            byte[] hdrBuf = new byte[HEADERSIZE];
-            ByteBuffer buf = ByteBuffer.wrap(hdrBuf);
-            buf.clear();
-            buf.putInt(this.connectionId);
-            buf.putInt(this.numBytes);
-            buf.putInt(this.packetNumber);
-            return buf.array();
-        }
-    }
+    // /*
+    // * The header class is used to make a RCMP header
+    // * @param int connectionId
+    // * @param int numBytes
+    // * @param int packetNumber
+    // */
+    // class Header {
+    //     int connectionId;
+    //     int numBytes;
+    //     int packetNumber;
+    //     Header(int connectionId, int numBytes, int packetNumber) {
+    //         this.connectionId = connectionId;
+    //         this.numBytes = numBytes;
+    //         this.packetNumber = packetNumber;
+    //     }
+    //     public byte[] getBytes() {
+    //         byte[] hdrBuf = new byte[HEADERSIZE];
+    //         ByteBuffer buf = ByteBuffer.wrap(hdrBuf);
+    //         buf.clear();
+    //         buf.putInt(this.connectionId);
+    //         buf.putInt(this.numBytes);
+    //         buf.putInt(this.packetNumber);
+    //         return buf.array();
+    //     }
+    // }
     
     /* Splits up a file into packets and sends those packets as it goes
     * @param String file: The file data to send
@@ -179,23 +179,26 @@ public class Sender {
                 int chunkLen = 0;
                 int amountSent = 0;
                 int packetsSent = 0;
-                int connectionId = new Random().nextInt();
+                int connectionId = new Random().nextInt(Integer.MAX_VALUE);
                 while (true) {
                     
                     packet.clear();
                     
-                    // add a header to the packet
-                    packet.put(
-                        new Header(connectionId, (int)this.fileSize, packetsSent)
-                        .getBytes()
-                    );
+                    packet.putInt(connectionId);
+                    packet.putInt(amountSent);
+                    packet.putInt(packetsSent);
                     
                     chunkLen = fin.read(chunk); // read in a chunk of the file
                     
                     if (chunkLen == -1)  break; // we've reached the end of the file
                     
+                    for (byte b : Arrays.copyOfRange(packet.array(), 0, chunkLen)) {
+                        PrintUtil.debug("" + b + ' ', this.verbose);
+                    }
+                    
                     // send over however much we read in
-                    UdpSend(Arrays.copyOfRange(packet.array(), 0, chunkLen)); 
+                    UdpSend(Arrays.copyOfRange(packet.array(), 0, chunkLen));
+                    
                     packetsSent++;
                     
                     // update the progress bar

@@ -118,7 +118,11 @@ public class Receiver {
                     
                     PrintUtil.debugln("Got data, writing data to file", this.verbose);
                     // write out only the data we got in the payload to the file
-                    fout.write(Arrays.copyOfRange(receivePacket.getData(), 0, receivePacket.getLength()));
+                    byte[] payload = Arrays.copyOfRange(receivePacket.getData(), 0, receivePacket.getLength());
+                    for (byte b : payload) {
+                        PrintUtil.debug("" + b + ' ', this.verbose);
+                    }
+                    fout.write(payload);
                     fout.flush();
                     
                     // send ack
