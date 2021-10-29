@@ -4,7 +4,7 @@
 * Advanced Computer Networking
 * Homework 4: Reliable FTP Using UDP
 *
-* Sender client will receive a file from the sender
+* Sender client will send a file to the receiver
 * 
 * Usage: java Sender.java java Sender.java --hostname <ip address/hostname> --port <port> --filename <file name>
 */

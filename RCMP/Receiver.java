@@ -134,7 +134,7 @@ public class Receiver {
                         this.verbose
                     );
                     
-                    PrintUtil.pad();
+                    PrintUtil.dbgpad(this.verbose);
                     
                     fout.write(payload);
                     fout.flush();
