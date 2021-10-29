@@ -201,26 +201,45 @@ public class Sender {
                     amountSent += chunkLen;
                     PrintUtil.printProgress(startTime, this.fileSize, amountSent, this.progress);
                     
+                    int rcvdConnId = 0;
                     // wait for an ack packet if there's still  more to
                     if (packetsSent < numPackets) {
-                        PrintUtil.debugln("Waiting for ack", this.verbose);
-                        ackPacket = new DatagramPacket(ackBuffer, ACKSIZE);
-                        this.Udp.receive(ackPacket);
-
-                        PrintUtil.println("" + ackBuffer.length);
-                        
-                        // check if the connection id is ok
-                        if (!(ackWrapper.getInt() == connectionId)) { // this gets BufferUnderflow exception even though there is stuff in the buffer.
-                            PrintUtil.debugln("Packet not from same connection", this.verbose);
+                        // make sure that we receive an ack for what we want in order to go on
+                        while (rcvdConnId != connectionId) {
+                            ackWrapper.clear();
+                            
+                            // receive the ack
+                            PrintUtil.debugln("Waiting for ack", this.verbose);
+                            ackPacket = new DatagramPacket(ackBuffer, ACKSIZE);
+                            this.Udp.receive(ackPacket);
+    
+                            // print out ack (debug)
+                            PrintUtil.debugln("Ack: ", this.verbose);
+                            for (byte b : ackWrapper.array()) {
+                                PrintUtil.debug("" + b + " ", this.verbose);
+                            }
+                            PrintUtil.debugln(this.verbose);
+                            
+                            // check if the connection id is ok
+                            if (!(ackWrapper.getInt() == connectionId)) { // this gets BufferUnderflow exception even though there is stuff in the buffer.
+                                PrintUtil.debugln("Ack packet not from same connection", this.verbose);
+                                continue;
+                            }
+                            
+                            // ackWrapper wraps ackBuffer
+                            lastAckedPacket = ackWrapper.getInt();
+                            
+                            // check to make sure the last acked packet is the one we were expecting to receive an ack for
+                            if (lastAckedPacket != packetsSent) {
+                                PrintUtil.debugln("Last acked packet not in order!", this.verbose);
+                                continue;
+                            }
+                            
+                            // printing ack messes up progbar
+                            if (!this.progress) PrintUtil.println("ACK " + lastAckedPacket);
+                            
+                            break;
                         }
-                        PrintUtil.println("" + ackBuffer.length);
-                        
-                        
-                        // ackWrapper wraps ackBuffer
-                        lastAckedPacket = ackWrapper.getInt();
-                        
-                        // printing ack messes up progbar
-                        if (!this.progress) PrintUtil.println("ACK " + lastAckedPacket);
                     }
                 }
                 
@@ -288,6 +307,13 @@ class PrintUtil {
             PrintUtil.println(message);
     }
     
+    public static void debugln(boolean debug) {
+        if (debug) {
+            System.out.println();
+            System.out.flush();
+        }
+    }
+    
     public static void debug(String message, boolean debug) {
         if (debug)
             PrintUtil.print(message);
@@ -295,6 +321,11 @@ class PrintUtil {
     
     public static void println(String message) {
         System.out.println(message);
+        System.out.flush();
+    }
+    
+    public static void println() {
+        System.out.println();
         System.out.flush();
     }
 
