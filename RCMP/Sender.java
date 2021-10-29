@@ -122,32 +122,6 @@ public class Sender {
             "Also supported are -v (--verbose) and -prog (--progress) to show the progress bar"
         );
     }
-
-    // /*
-    // * The header class is used to make a RCMP header
-    // * @param int connectionId
-    // * @param int numBytes
-    // * @param int packetNumber
-    // */
-    // class Header {
-    //     int connectionId;
-    //     int numBytes;
-    //     int packetNumber;
-    //     Header(int connectionId, int numBytes, int packetNumber) {
-    //         this.connectionId = connectionId;
-    //         this.numBytes = numBytes;
-    //         this.packetNumber = packetNumber;
-    //     }
-    //     public byte[] getBytes() {
-    //         byte[] hdrBuf = new byte[HEADERSIZE];
-    //         ByteBuffer buf = ByteBuffer.wrap(hdrBuf);
-    //         buf.clear();
-    //         buf.putInt(this.connectionId);
-    //         buf.putInt(this.numBytes);
-    //         buf.putInt(this.packetNumber);
-    //         return buf.array();
-    //     }
-    // }
     
     /* Splits up a file into packets and sends those packets as it goes
     * @param String file: The file data to send
