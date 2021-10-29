@@ -173,8 +173,9 @@ public class Sender {
                 FileInputStream fin = new FileInputStream(file);
                 DatagramPacket ack;
                 int ACKLEN = 3;
-                byte[] chunk = new byte[HEADERSIZE + PAYLOADSIZE];
-                ByteBuffer packet = ByteBuffer.wrap(chunk);
+                byte[] chunk = new byte[PAYLOADSIZE];
+                byte[] pckt = new byte[FULLPCKTSIZE];
+                ByteBuffer packet = ByteBuffer.wrap(pckt);
                 byte[] ackBuffer = new byte[ACKLEN];
                 int chunkLen = 0;
                 int amountSent = 0;
@@ -184,20 +185,32 @@ public class Sender {
                     
                     packet.clear();
                     
-                    packet.putInt(connectionId);
-                    packet.putInt(amountSent);
-                    packet.putInt(packetsSent);
+                    PrintUtil.pad();
                     
                     chunkLen = fin.read(chunk); // read in a chunk of the file
                     
+                    // PrintUtil.print("Header: ");
+                    // int h = 0;
+                    // for (byte b : packet.array()) {
+                    //     PrintUtil.debug("" + b + ' ', this.verbose);
+                    //     if (h == HEADERSIZE - 1) break;
+                    //     h++;
+                    // }
+                    // PrintUtil.debug("||", this.verbose);
+                    
                     if (chunkLen == -1)  break; // we've reached the end of the file
+                    
+                    packet.putInt(connectionId);
+                    packet.putInt(amountSent);
+                    packet.putInt(packetsSent);
+                    packet.put(chunk);
                     
                     for (byte b : Arrays.copyOfRange(packet.array(), 0, chunkLen)) {
                         PrintUtil.debug("" + b + ' ', this.verbose);
                     }
                     
                     // send over however much we read in
-                    UdpSend(Arrays.copyOfRange(packet.array(), 0, chunkLen));
+                    UdpSend(Arrays.copyOfRange(packet.array(), 0, chunkLen + HEADERSIZE));
                     
                     packetsSent++;
                     
@@ -224,7 +237,7 @@ public class Sender {
             }
             catch (Exception e) {
                 PrintUtil.exception(e, this.verbose);
-                PrintUtil.debugln("Done sending file?", this.verbose);
+                PrintUtil.debugln("There was an error sending the file", this.verbose);
             }
         }
         catch (Exception e) {

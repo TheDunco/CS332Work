@@ -118,10 +118,12 @@ public class Receiver {
                     
                     PrintUtil.debugln("Got data, writing data to file", this.verbose);
                     // write out only the data we got in the payload to the file
-                    byte[] payload = Arrays.copyOfRange(receivePacket.getData(), 0, receivePacket.getLength());
+                    byte[] payload = Arrays.copyOfRange(receivePacket.getData(), HEADERSIZE, receivePacket.getLength());
                     for (byte b : payload) {
                         PrintUtil.debug("" + b + ' ', this.verbose);
                     }
+                    PrintUtil.pad();
+                    
                     fout.write(payload);
                     fout.flush();
                     
@@ -133,12 +135,6 @@ public class Receiver {
                     if (receivePacket.getLength() < FULLPCKTSIZE) {
                         break;
                     }
-                    
-                    // InetAddress IPAddress = receivePacket.getAddress();
-                    // String sendString = "A C K";
-                    // response = sendString.getBytes();
-                    // DatagramPacket sendPacket = new DatagramPacket(response, response.length, IPAddress, port);
-                    // Udp.send(sendPacket);
                 }
                 fout.close();
             }
