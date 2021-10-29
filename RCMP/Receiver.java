@@ -10,8 +10,6 @@
 */
 
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -21,14 +19,15 @@ import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
+import java.util.Random;
+import java.nio.ByteBuffer;
 
 public class Receiver {
-    public final static int PACKETSIZE = 1450;
+    public final static int PAYLOADSIZE = 1450;
+    public final static int HEADERSIZE = 12;
+    public final static int FULLPCKTSIZE = HEADERSIZE + PAYLOADSIZE;
     private boolean verbose = false;
     private String filename = "";
     private Integer port = 22222;
@@ -107,19 +106,35 @@ public class Receiver {
         PrintUtil.debugln("Receiving file...", this.verbose);
         try {
             // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
-            byte[] receiveData = new byte[PACKETSIZE];
+            byte[] receiveData = new byte[FULLPCKTSIZE];
             DatagramPacket receivePacket;
             byte[] ack = "ACK".getBytes();
             
             try (FileOutputStream fout = new FileOutputStream(this.filename)) {
                 while (true) {
                     // receive data
-                    receivePacket = new DatagramPacket(receiveData, PACKETSIZE);
+                    receivePacket = new DatagramPacket(receiveData, FULLPCKTSIZE);
                     Udp.receive(receivePacket);
                     
                     PrintUtil.debugln("Got data, writing data to file", this.verbose);
-                    // write out only the data we got to the file
-                    fout.write(Arrays.copyOfRange(receivePacket.getData(), 0, receivePacket.getLength()));
+                    // write out only the data we got in the payload to the file
+                    byte[] payload = Arrays.copyOfRange(receivePacket.getData(), HEADERSIZE, receivePacket.getLength());
+                    ByteBuffer header = ByteBuffer.wrap(Arrays.copyOfRange(receivePacket.getData(), 0, HEADERSIZE));
+                    
+                    int connectionId = header.getInt();
+                    int bytesSent = header.getInt();
+                    int packetNum = header.getInt();
+                    
+                    // print out the parts of the header
+                    PrintUtil.debugln(
+                        String.format("connectionId: %d, bytesSent: %d, packetNum: %d",
+                                       connectionId,     bytesSent,     packetNum), 
+                        this.verbose
+                    );
+                    
+                    PrintUtil.pad();
+                    
+                    fout.write(payload);
                     fout.flush();
                     
                     // send ack
@@ -127,15 +142,9 @@ public class Receiver {
                     UdpSend(ack, receivePacket.getAddress(), receivePacket.getPort());
                     
                     // we've received the whole file if we get a packet that's smaller than packetsize
-                    if (receivePacket.getLength() < PACKETSIZE) {
+                    if (receivePacket.getLength() < FULLPCKTSIZE) {
                         break;
                     }
-                    
-                    // InetAddress IPAddress = receivePacket.getAddress();
-                    // String sendString = "A C K";
-                    // response = sendString.getBytes();
-                    // DatagramPacket sendPacket = new DatagramPacket(response, response.length, IPAddress, port);
-                    // Udp.send(sendPacket);
                 }
                 fout.close();
             }
@@ -174,6 +183,11 @@ class PrintUtil {
     
     public static void pad() {
         System.out.println("\n");
+    }
+    
+    public static void dbgpad(boolean debug) {
+        if (debug)
+            System.out.println("\n");
     }
     
     public static void exception(Exception e, boolean debug) {

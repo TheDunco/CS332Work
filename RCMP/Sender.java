@@ -23,11 +23,13 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-
-
+import java.util.Random;
+import java.nio.ByteBuffer;
 
 public class Sender {
-    public final static int PACKETSIZE = 1450;
+    public final static int PAYLOADSIZE = 1450;
+    public final static int HEADERSIZE = 12;
+    public final static int FULLPCKTSIZE = HEADERSIZE + PAYLOADSIZE;
     private boolean verbose = false;
     private boolean progress = false;
     private String filename = "";
@@ -117,9 +119,35 @@ public class Sender {
     public static void displayUsageErrorMessage() {
         PrintUtil.fault(
             "Usage: java Sender.java --hostname <ip address/hostname> --port <port> --filename <file name>\n" +
-            "Also supported are -v (--verbose) and --progress (-p) to show the progress bar"
+            "Also supported are -v (--verbose) and -prog (--progress) to show the progress bar"
         );
     }
+
+    // /*
+    // * The header class is used to make a RCMP header
+    // * @param int connectionId
+    // * @param int numBytes
+    // * @param int packetNumber
+    // */
+    // class Header {
+    //     int connectionId;
+    //     int numBytes;
+    //     int packetNumber;
+    //     Header(int connectionId, int numBytes, int packetNumber) {
+    //         this.connectionId = connectionId;
+    //         this.numBytes = numBytes;
+    //         this.packetNumber = packetNumber;
+    //     }
+    //     public byte[] getBytes() {
+    //         byte[] hdrBuf = new byte[HEADERSIZE];
+    //         ByteBuffer buf = ByteBuffer.wrap(hdrBuf);
+    //         buf.clear();
+    //         buf.putInt(this.connectionId);
+    //         buf.putInt(this.numBytes);
+    //         buf.putInt(this.packetNumber);
+    //         return buf.array();
+    //     }
+    // }
     
     /* Splits up a file into packets and sends those packets as it goes
     * @param String file: The file data to send
@@ -138,38 +166,62 @@ public class Sender {
                 this.fileSize = file.length();
                 
                 // number of packets will be size of file / PACKETSIZE rounded up
-                int numPackets = (int)(((double)this.fileSize / (double)PACKETSIZE) + 0.5);
+                int numPackets = (int)(((double)this.fileSize / (double)PAYLOADSIZE) + 0.5);
                 PrintUtil.debugln("Excpected # of packets: " + numPackets, this.verbose);
                 
                 // init vars for reading in, sending, and receiving
                 FileInputStream fin = new FileInputStream(file);
                 DatagramPacket ack;
                 int ACKLEN = 3;
-                byte[] chunk = new byte[PACKETSIZE];
+                byte[] chunk = new byte[PAYLOADSIZE];
+                byte[] pckt = new byte[FULLPCKTSIZE];
+                ByteBuffer packet = ByteBuffer.wrap(pckt);
                 byte[] ackBuffer = new byte[ACKLEN];
                 int chunkLen = 0;
                 int amountSent = 0;
                 int packetsSent = 0;
-                
+                int connectionId = new Random().nextInt(Integer.MAX_VALUE);
                 while (true) {
+                    
+                    packet.clear();
+                    
                     chunkLen = fin.read(chunk); // read in a chunk of the file
+                    
+                    // PrintUtil.print("Header: ");
+                    // int h = 0;
+                    // for (byte b : packet.array()) {
+                    //     PrintUtil.debug("" + b + ' ', this.verbose);
+                    //     if (h == HEADERSIZE - 1) break;
+                    //     h++;
+                    // }
+                    // PrintUtil.debug("||", this.verbose);
                     
                     if (chunkLen == -1)  break; // we've reached the end of the file
                     
+                    packet.putInt(connectionId);
+                    packet.putInt(amountSent);
+                    packet.putInt(packetsSent);
+                    packet.put(chunk);
+                    
+                    // for (byte b : Arrays.copyOfRange(packet.array(), 0, chunkLen)) {
+                    //     PrintUtil.debug("" + b + ' ', this.verbose);
+                    // }
+                    
                     // send over however much we read in
-                    UdpSend(Arrays.copyOfRange(chunk, 0, chunkLen)); 
+                    UdpSend(Arrays.copyOfRange(packet.array(), 0, chunkLen + HEADERSIZE));
+                    
                     packetsSent++;
                     
                     // update the progress bar
-                    PrintUtil.printProgress(startTime, this.fileSize, amountSent, this.progress);
                     amountSent += chunkLen;
+                    PrintUtil.printProgress(startTime, this.fileSize, amountSent, this.progress);
                     
                     // wait for an ack packet if there's still  more to
                     if (packetsSent < numPackets) {
                         PrintUtil.debugln("Waiting for ack", this.verbose);
                         ack = new DatagramPacket(ackBuffer, ACKLEN);
                         this.Udp.receive(ack);
-                        PrintUtil.println("ACK");
+                        if (!this.progress) PrintUtil.println("ACK"); // printing ack messes up progbar
                     }
                 }
                 
@@ -183,7 +235,7 @@ public class Sender {
             }
             catch (Exception e) {
                 PrintUtil.exception(e, this.verbose);
-                PrintUtil.debugln("Done sending file?", this.verbose);
+                PrintUtil.debugln("There was an error sending the file", this.verbose);
             }
         }
         catch (Exception e) {
@@ -220,6 +272,11 @@ class PrintUtil {
     
     public static void pad() {
         System.out.println("\n");
+    }
+    
+    public static void dbgpad(boolean debug) {
+        if (debug)
+            System.out.println("\n");
     }
     
     public static void exception(Exception e, boolean debug) {
