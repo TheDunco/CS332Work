@@ -28,6 +28,7 @@ public class Receiver {
     public final static int PAYLOADSIZE = 1450;
     public final static int HEADERSIZE = 12;
     public final static int FULLPCKTSIZE = HEADERSIZE + PAYLOADSIZE;
+    public final static int ACKSIZE = 8;
     private boolean verbose = false;
     private String filename = "";
     private Integer port = 22222;
@@ -104,11 +105,12 @@ public class Receiver {
     private void receiveFile() {
         
         PrintUtil.debugln("Receiving file...", this.verbose);
+        int numPacketsReceived = 0;
         try {
             // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
             byte[] receiveData = new byte[FULLPCKTSIZE];
             DatagramPacket receivePacket;
-            byte[] ack = "ACK".getBytes();
+            ByteBuffer ack = ByteBuffer.wrap(new byte[ACKSIZE]);
             
             try (FileOutputStream fout = new FileOutputStream(this.filename)) {
                 while (true) {
@@ -122,13 +124,13 @@ public class Receiver {
                     ByteBuffer header = ByteBuffer.wrap(Arrays.copyOfRange(receivePacket.getData(), 0, HEADERSIZE));
                     
                     int connectionId = header.getInt();
-                    int bytesSent = header.getInt();
+                    int bytesReceived = header.getInt();
                     int packetNum = header.getInt();
                     
                     // print out the parts of the header
                     PrintUtil.debugln(
-                        String.format("connectionId: %d, bytesSent: %d, packetNum: %d",
-                                       connectionId,     bytesSent,     packetNum), 
+                        String.format("connectionId: %d, bytesReceived: %d, packetNum: %d",
+                                       connectionId,     bytesReceived,     packetNum), 
                         this.verbose
                     );
                     
@@ -137,9 +139,20 @@ public class Receiver {
                     fout.write(payload);
                     fout.flush();
                     
+                    
+                    numPacketsReceived++;
+                    
+                    ack.clear();
+                    ack.putInt(connectionId);
+                    ack.putInt(numPacketsReceived);
+                    
+                    for (byte b : ack.array()) {
+                        PrintUtil.debug("" + b + " ", this.verbose);
+                    }
+                    
                     // send ack
                     PrintUtil.debugln("Sending ack", this.verbose);
-                    UdpSend(ack, receivePacket.getAddress(), receivePacket.getPort());
+                    UdpSend(ack.array(), receivePacket.getAddress(), receivePacket.getPort());
                     
                     // we've received the whole file if we get a packet that's smaller than packetsize
                     if (receivePacket.getLength() < FULLPCKTSIZE) {
