@@ -30,6 +30,7 @@ public class Sender {
     public final static int PAYLOADSIZE = 1450;
     public final static int HEADERSIZE = 12;
     public final static int FULLPCKTSIZE = HEADERSIZE + PAYLOADSIZE;
+    public final static int ACKSIZE = 8;
     private boolean verbose = false;
     private boolean progress = false;
     private String filename = "";
@@ -144,17 +145,25 @@ public class Sender {
                 PrintUtil.debugln("Excpected # of packets: " + numPackets, this.verbose);
                 
                 // init vars for reading in, sending, and receiving
+                
+                // ack
                 FileInputStream fin = new FileInputStream(file);
-                DatagramPacket ack;
-                int ACKLEN = 3;
+                byte[] ackBuffer = new byte[ACKSIZE];
+                ByteBuffer ackWrapper = ByteBuffer.wrap(ackBuffer);
+                DatagramPacket ackPacket;
+                
+                // payload/header
                 byte[] chunk = new byte[PAYLOADSIZE];
                 byte[] pckt = new byte[FULLPCKTSIZE];
                 ByteBuffer packet = ByteBuffer.wrap(pckt);
-                byte[] ackBuffer = new byte[ACKLEN];
+                
+                // tracking/header vars
                 int chunkLen = 0;
                 int amountSent = 0;
                 int packetsSent = 0;
                 int connectionId = new Random().nextInt(Integer.MAX_VALUE);
+                int lastAckedPacket = 0;
+                
                 while (true) {
                     
                     packet.clear();
@@ -172,9 +181,11 @@ public class Sender {
                     
                     if (chunkLen == -1)  break; // we've reached the end of the file
                     
+                    // put the header in the packet
                     packet.putInt(connectionId);
                     packet.putInt(amountSent);
                     packet.putInt(packetsSent);
+                    // put chunk of file into packet
                     packet.put(chunk);
                     
                     // for (byte b : Arrays.copyOfRange(packet.array(), 0, chunkLen)) {
@@ -193,9 +204,23 @@ public class Sender {
                     // wait for an ack packet if there's still  more to
                     if (packetsSent < numPackets) {
                         PrintUtil.debugln("Waiting for ack", this.verbose);
-                        ack = new DatagramPacket(ackBuffer, ACKLEN);
-                        this.Udp.receive(ack);
-                        if (!this.progress) PrintUtil.println("ACK"); // printing ack messes up progbar
+                        ackPacket = new DatagramPacket(ackBuffer, ACKSIZE);
+                        this.Udp.receive(ackPacket);
+
+                        PrintUtil.println("" + ackBuffer.length);
+                        
+                        // check if the connection id is ok
+                        if (!(ackWrapper.getInt() == connectionId)) { // this gets BufferUnderflow exception even though there is stuff in the buffer.
+                            PrintUtil.debugln("Packet not from same connection", this.verbose);
+                        }
+                        PrintUtil.println("" + ackBuffer.length);
+                        
+                        
+                        // ackWrapper wraps ackBuffer
+                        lastAckedPacket = ackWrapper.getInt();
+                        
+                        // printing ack messes up progbar
+                        if (!this.progress) PrintUtil.println("ACK " + lastAckedPacket);
                     }
                 }
                 
