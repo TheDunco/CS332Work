@@ -185,8 +185,6 @@ public class Sender {
                     
                     packet.clear();
                     
-                    PrintUtil.pad();
-                    
                     chunkLen = fin.read(chunk); // read in a chunk of the file
                     
                     // PrintUtil.print("Header: ");
@@ -205,9 +203,9 @@ public class Sender {
                     packet.putInt(packetsSent);
                     packet.put(chunk);
                     
-                    for (byte b : Arrays.copyOfRange(packet.array(), 0, chunkLen)) {
-                        PrintUtil.debug("" + b + ' ', this.verbose);
-                    }
+                    // for (byte b : Arrays.copyOfRange(packet.array(), 0, chunkLen)) {
+                    //     PrintUtil.debug("" + b + ' ', this.verbose);
+                    // }
                     
                     // send over however much we read in
                     UdpSend(Arrays.copyOfRange(packet.array(), 0, chunkLen + HEADERSIZE));
@@ -274,6 +272,11 @@ class PrintUtil {
     
     public static void pad() {
         System.out.println("\n");
+    }
+    
+    public static void dbgpad(boolean debug) {
+        if (debug)
+            System.out.println("\n");
     }
     
     public static void exception(Exception e, boolean debug) {

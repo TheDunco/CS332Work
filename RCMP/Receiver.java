@@ -119,9 +119,19 @@ public class Receiver {
                     PrintUtil.debugln("Got data, writing data to file", this.verbose);
                     // write out only the data we got in the payload to the file
                     byte[] payload = Arrays.copyOfRange(receivePacket.getData(), HEADERSIZE, receivePacket.getLength());
-                    for (byte b : payload) {
-                        PrintUtil.debug("" + b + ' ', this.verbose);
-                    }
+                    ByteBuffer header = ByteBuffer.wrap(Arrays.copyOfRange(receivePacket.getData(), 0, HEADERSIZE));
+                    
+                    int connectionId = header.getInt();
+                    int bytesSent = header.getInt();
+                    int packetNum = header.getInt();
+                    
+                    // print out the parts of the header
+                    PrintUtil.debugln(
+                        String.format("connectionId: %d, bytesSent: %d, packetNum: %d",
+                                       connectionId,     bytesSent,     packetNum), 
+                        this.verbose
+                    );
+                    
                     PrintUtil.pad();
                     
                     fout.write(payload);
@@ -173,6 +183,11 @@ class PrintUtil {
     
     public static void pad() {
         System.out.println("\n");
+    }
+    
+    public static void dbgpad(boolean debug) {
+        if (debug)
+            System.out.println("\n");
     }
     
     public static void exception(Exception e, boolean debug) {
