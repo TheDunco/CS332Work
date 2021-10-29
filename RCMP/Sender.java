@@ -28,7 +28,7 @@ import java.nio.ByteBuffer;
 
 public class Sender {
     public final static int PAYLOADSIZE = 1450;
-    public final static int HEADERSIZE = 12;
+    public final static int HEADERSIZE = 13;
     public final static int FULLPCKTSIZE = HEADERSIZE + PAYLOADSIZE;
     public final static int ACKSIZE = 8;
     private boolean verbose = false;
@@ -141,8 +141,8 @@ public class Sender {
                 this.fileSize = file.length();
                 
                 // number of packets will be size of file / PACKETSIZE rounded up
-                int numPackets = (int)(((double)this.fileSize / (double)PAYLOADSIZE) + 0.5);
-                PrintUtil.debugln("Excpected # of packets: " + numPackets, this.verbose);
+                int totalNumPackets = (int)(((double)this.fileSize / (double)PAYLOADSIZE) + 0.5);
+                PrintUtil.debugln("Excpected # of packets: " + totalNumPackets, this.verbose);
                 
                 // init vars for reading in, sending, and receiving
                 
@@ -163,8 +163,13 @@ public class Sender {
                 int packetsSent = 0;
                 int connectionId = new Random().nextInt(Integer.MAX_VALUE);
                 int lastAckedPacket = 0;
+                int gapCounter = 0;
+                int gap = 0;
+                byte toAck = 1;
                 
                 while (true) {
+                    
+                    toAck = (byte) (packetsSent == gap ? 1 : 0);
                     
                     packet.clear();
                     
@@ -181,10 +186,15 @@ public class Sender {
                     
                     if (chunkLen == -1)  break; // we've reached the end of the file
                     
+                    if (packetsSent + 1 == totalNumPackets) {
+                        toAck = 1;
+                    }
+                    
                     // put the header in the packet
                     packet.putInt(connectionId);
                     packet.putInt(amountSent);
                     packet.putInt(packetsSent);
+                    packet.put(toAck);
                     // put chunk of file into packet
                     packet.put(chunk);
                     
@@ -201,9 +211,12 @@ public class Sender {
                     amountSent += chunkLen;
                     PrintUtil.printProgress(startTime, this.fileSize, amountSent, this.progress);
                     
+                    
+                    PrintUtil.debugln(String.format("toAck: %d, gap: %d, gapCounter: %d, pcktsSent: %d", toAck, gap, gapCounter, packetsSent), this.verbose);
+                    
                     int rcvdConnId = 0;
                     // wait for an ack packet if there's still  more to
-                    if (packetsSent < numPackets) {
+                    if (toAck == 1) {
                         // make sure that we receive an ack for what we want in order to go on
                         while (rcvdConnId != connectionId) {
                             ackWrapper.clear();
@@ -214,7 +227,7 @@ public class Sender {
                             this.Udp.receive(ackPacket);
     
                             // print out ack (debug)
-                            PrintUtil.debugln("Ack: ", this.verbose);
+                            PrintUtil.debug("Ack: ", this.verbose);
                             for (byte b : ackWrapper.array()) {
                                 PrintUtil.debug("" + b + " ", this.verbose);
                             }
@@ -223,6 +236,7 @@ public class Sender {
                             // check if the connection id is ok
                             if (!(ackWrapper.getInt() == connectionId)) { // this gets BufferUnderflow exception even though there is stuff in the buffer.
                                 PrintUtil.debugln("Ack packet not from same connection", this.verbose);
+                                gap = gapCounter = 0;
                                 continue;
                             }
                             
@@ -232,11 +246,15 @@ public class Sender {
                             // check to make sure the last acked packet is the one we were expecting to receive an ack for
                             if (lastAckedPacket != packetsSent) {
                                 PrintUtil.debugln("Last acked packet not in order!", this.verbose);
+                                gap = gapCounter = 0;
                                 continue;
                             }
                             
                             // printing ack messes up progbar
                             if (!this.progress) PrintUtil.println("ACK " + lastAckedPacket);
+                            
+                            gapCounter++;
+                            gap += gapCounter;
                             
                             break;
                         }

@@ -26,7 +26,7 @@ import java.nio.ByteBuffer;
 
 public class Receiver {
     public final static int PAYLOADSIZE = 1450;
-    public final static int HEADERSIZE = 12;
+    public final static int HEADERSIZE = 13;
     public final static int FULLPCKTSIZE = HEADERSIZE + PAYLOADSIZE;
     public final static int ACKSIZE = 8;
     private boolean verbose = false;
@@ -126,11 +126,12 @@ public class Receiver {
                     int connectionId = header.getInt();
                     int bytesReceived = header.getInt();
                     int packetNum = header.getInt();
+                    int toAck = header.get();
                     
                     // print out the parts of the header
                     PrintUtil.debugln(
-                        String.format("connectionId: %d, bytesReceived: %d, packetNum: %d",
-                                       connectionId,     bytesReceived,     packetNum), 
+                        String.format("connectionId: %d, bytesReceived: %d, packetNum: %d, toAck: %d",
+                                       connectionId,     bytesReceived,     packetNum,     toAck), 
                         this.verbose
                     );
                     
@@ -142,17 +143,21 @@ public class Receiver {
                     
                     numPacketsReceived++;
                     
-                    ack.clear();
-                    ack.putInt(connectionId);
-                    ack.putInt(numPacketsReceived);
-                    
-                    for (byte b : ack.array()) {
-                        PrintUtil.debug("" + b + " ", this.verbose);
+                    if (toAck == 1) {
+                        ack.clear();
+                        ack.putInt(connectionId);
+                        ack.putInt(numPacketsReceived);
+                        
+                        for (byte b : ack.array()) {
+                            PrintUtil.debug("" + b + " ", this.verbose);
+                        }
+                        PrintUtil.debugln(this.verbose);
+                        
+                        // send ack
+                        PrintUtil.debugln("Sending ack", this.verbose);
+                        UdpSend(ack.array(), receivePacket.getAddress(), receivePacket.getPort());
                     }
                     
-                    // send ack
-                    PrintUtil.debugln("Sending ack", this.verbose);
-                    UdpSend(ack.array(), receivePacket.getAddress(), receivePacket.getPort());
                     
                     // we've received the whole file if we get a packet that's smaller than packetsize
                     if (receivePacket.getLength() < FULLPCKTSIZE) {
@@ -188,7 +193,7 @@ public class Receiver {
 
 
 // utility print functions to save my fingers and improve readability
-class PrintUtil {
+class PrintUtil { 
     
     public static void flush() {
         System.out.flush();
@@ -213,6 +218,13 @@ class PrintUtil {
             PrintUtil.println(message);
     }
     
+    public static void debugln(boolean debug) {
+        if (debug) {
+            System.out.println();
+            System.out.flush();
+        }
+    }
+    
     public static void debug(String message, boolean debug) {
         if (debug)
             PrintUtil.print(message);
@@ -220,6 +232,11 @@ class PrintUtil {
     
     public static void println(String message) {
         System.out.println(message);
+        System.out.flush();
+    }
+    
+    public static void println() {
+        System.out.println();
         System.out.flush();
     }
 
@@ -270,5 +287,3 @@ class PrintUtil {
         }
     }
 }
-
-
