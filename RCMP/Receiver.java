@@ -121,7 +121,7 @@ public class Receiver {
                     receivePacket = new DatagramPacket(receiveData, FULLPCKTSIZE);
                     Udp.receive(receivePacket);
                     
-                    PrintUtil.debugln("Got data, writing data to file", this.verbose);
+                    PrintUtil.debugln("Got data", this.verbose);
                     // write out only the data we got in the payload to the file
                     byte[] payload = Arrays.copyOfRange(receivePacket.getData(), HEADERSIZE, receivePacket.getLength());
                     ByteBuffer header = ByteBuffer.wrap(Arrays.copyOfRange(receivePacket.getData(), 0, HEADERSIZE));
@@ -142,6 +142,20 @@ public class Receiver {
                         continue;
                     }
                     
+                    
+                    PrintUtil.debugln(this.verbose);
+                    
+                    PrintUtil.debugln("Good packet, writing to file...", this.verbose);
+                    
+                    if (oneTime && packetNum == 105) {
+                        oneTime = false;
+                        continue;
+                    }
+                    fout.write(payload);
+                    fout.flush();
+                    
+                    numPacketsReceived++;
+                    
                     // print out the parts of the header
                     PrintUtil.debugln(
                         String.format("connectionId: %d, bytesReceived: %d, packetNum: %d, toAck: %d",
@@ -149,20 +163,7 @@ public class Receiver {
                         this.verbose
                     );
                     
-                    PrintUtil.dbgpad(this.verbose);
-                    
-                    fout.write(payload);
-                    fout.flush();
-                    
-                    numPacketsReceived++;
-                    
-                    if (oneTime && packetNum == 105) {
-                        oneTime = false;
-                        continue;
-                    }
-                    
                     SendAck(toAck, ack, connectionId, numPacketsReceived, receivePacket);
-                    
                     
                     // we've received the whole file if we get a packet that's smaller than packetsize
                     if (receivePacket.getLength() < FULLPCKTSIZE) {
