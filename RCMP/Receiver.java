@@ -156,7 +156,7 @@ public class Receiver {
                     
                     numPacketsReceived++;
                     
-                    if (oneTime && packetNum == 1) {
+                    if (oneTime && packetNum == 105) {
                         oneTime = false;
                         continue;
                     }

@@ -171,17 +171,17 @@ public class Sender {
                 int gapCounter = 0;
                 int gap = 0;
                 byte toAck = 1;
-                
+                int packetsSentSinceReset = 0;
                 boolean resend = false;
                 int resendCount = 0;
                 
                 while (true) {
                     
-                    if (!resend)
-                        toAck = (byte) (packetsSent == gap ? 1 : 0);
-                    else
+                    if (resend)
                         toAck = 1;
-                    
+                    else
+                        toAck = (byte) (packetsSentSinceReset == gap ? 1 : 0);
+                        
                     packet.clear();
                     
                     chunkLen = fin.read(chunk); // read in a chunk of the file
@@ -197,6 +197,8 @@ public class Sender {
                     
                     if (chunkLen == -1)  break; // we've reached the end of the file
                     
+                    // ack the last packet
+                    // !Not working!
                     if (packetsSent + 1 == totalNumPackets) {
                         toAck = 1;
                     }
@@ -217,12 +219,13 @@ public class Sender {
                     UdpSend(Arrays.copyOfRange(packet.array(), 0, chunkLen + HEADERSIZE));
                     
                     packetsSent++;
-                    
+                    packetsSentSinceReset++;
+                                        
                     // update the progress bar
                     bytesSent += chunkLen;
                     PrintUtil.printProgress(startTime, this.fileSize, bytesSent, this.progress);
                     
-                    PrintUtil.debugln(String.format("toAck: %d, gap: %d, gapCounter: %d, pcktsSent: %d", toAck, gap, gapCounter, packetsSent), this.verbose);
+                    PrintUtil.debugln(String.format("toAck: %d, gap: %d, gapCounter: %d, pcktsSentSinceReset: %d, pcktsSent: %d", toAck, gap, gapCounter, packetsSentSinceReset, packetsSent), this.verbose);
                     
                     int rcvdConnId = 0;
                     // wait for an ack packet if there's still  more to
@@ -243,7 +246,7 @@ public class Sender {
                                 PrintUtil.debugln("Socket timeout!", this.verbose);
                                 
                                 // reset the gap
-                                gap = gapCounter = 0;
+                                gap = gapCounter = packetsSentSinceReset = 0;
                                 
                                 // we only know that we have sent over lastAckedPacket packets successfully, same with bytes
                                 packetsSent = lastAckedPacket;
@@ -295,7 +298,11 @@ public class Sender {
                             resend = false;
                             
                             // printing ack messes up progbar
-                            if (!this.progress) PrintUtil.println("ACK " + (lastAckedPacket - 1));
+                            if (!this.progress) PrintUtil.println("ACK " + (lastAckedPacket));
+                            
+                            if (lastAckedPacket == totalNumPackets) {
+                                PrintUtil.fault("Done sending file", this.verbose);
+                            }
                             
                             gapCounter++;
                             gap += gapCounter;
@@ -399,6 +406,14 @@ class PrintUtil {
     public static void fault(String message) {
         System.err.println(message);
         System.err.flush();
+        fault();
+    }
+    
+    public static void fault(String message, boolean debug) {
+        if (debug) {
+            System.err.println(message);
+            System.err.flush();
+        }
         fault();
     }
     
