@@ -186,20 +186,10 @@ public class Sender {
                     
                     chunkLen = fin.read(chunk); // read in a chunk of the file
                     
-                    // PrintUtil.print("Header: ");
-                    // int h = 0;
-                    // for (byte b : packet.array()) {
-                    //     PrintUtil.debug("" + b + ' ', this.verbose);
-                    //     if (h == HEADERSIZE - 1) break;
-                    //     h++;
-                    // }
-                    // PrintUtil.debug("||", this.verbose);
-                    
                     if (chunkLen == -1)  break; // we've reached the end of the file
                     
                     // ack the last packet
-                    // !Not working!
-                    if (packetsSent + 1 == totalNumPackets) {
+                    if (packetsSent == totalNumPackets) {
                         toAck = 1;
                     }
                     
@@ -209,7 +199,7 @@ public class Sender {
                     packet.putInt(packetsSent);
                     packet.put(toAck);
                     // put chunk of file into packet
-                    packet.put(chunk);
+                    packet.put(Arrays.copyOfRange(chunk, 0, chunkLen));
                     
                     // for (byte b : Arrays.copyOfRange(packet.array(), 0, chunkLen)) {
                     //     PrintUtil.debug("" + b + ' ', this.verbose);
@@ -225,7 +215,7 @@ public class Sender {
                     bytesSent += chunkLen;
                     PrintUtil.printProgress(startTime, this.fileSize, bytesSent, this.progress);
                     
-                    PrintUtil.debugln(String.format("toAck: %d, gap: %d, gapCounter: %d, pcktsSentSinceReset: %d, pcktsSent: %d", toAck, gap, gapCounter, packetsSentSinceReset, packetsSent), this.verbose);
+                    PrintUtil.debugln(String.format("toAck: %d, gap: %d, gapCounter: %d, pcktsSentSinceReset: %d, pcktsSent: %d, bytesInPayload %d", toAck, gap, gapCounter, packetsSentSinceReset - 1, packetsSent - 1, chunkLen), this.verbose);
                     
                     int rcvdConnId = 0;
                     // wait for an ack packet if there's still  more to
@@ -263,7 +253,7 @@ public class Sender {
                                 resend = true;
                                 
                                 // exit program if receiver just isn't responding...
-                                if (resendCount > 9) {
+                                if (resendCount > 5) {
                                     PrintUtil.fault("Receiver not responding!");
                                 }
                                 

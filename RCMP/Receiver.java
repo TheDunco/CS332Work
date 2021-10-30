@@ -131,26 +131,27 @@ public class Receiver {
                     int packetNum = header.getInt();
                     int toAck = header.get();
                     
+                    // drop packet 95 (for testing)
+                    if (oneTime && packetNum == 95) {
+                        oneTime = false;
+                        continue;
+                    }
+                    
                     // this is the packet we were expecting
                     if (lastPacket == packetNum) {
                         lastPacket++;
                     }
                     else { 
-                        PrintUtil.debugln("Packet was not the expected packet", this.verbose);
+                        PrintUtil.debugln("Dropping packet: not the expected packet", this.verbose);
                         // send ack but don't write out to the file
-                        SendAck(toAck, ack, connectionId, numPacketsReceived, receivePacket);
+                        if (toAck == 1) {
+                            SendAck(toAck, ack, connectionId, numPacketsReceived, receivePacket);
+                        }
                         continue;
                     }
                     
+                    PrintUtil.debugln("\nGood packet, writing to file...", this.verbose);
                     
-                    PrintUtil.debugln(this.verbose);
-                    
-                    PrintUtil.debugln("Good packet, writing to file...", this.verbose);
-                    
-                    if (oneTime && packetNum == 105) {
-                        oneTime = false;
-                        continue;
-                    }
                     fout.write(payload);
                     fout.flush();
                     
