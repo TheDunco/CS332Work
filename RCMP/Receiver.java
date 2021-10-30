@@ -5,6 +5,7 @@
 * Homework 4: Reliable FTP Using UDP
 *
 * Receiver client will receive a file from the sender
+* Implements a reliable file transfer protocol using UDP
 * 
 * Usage: java Receiver.java --port <port> --output <filename>
 */
@@ -111,6 +112,8 @@ public class Receiver {
             byte[] receiveData = new byte[FULLPCKTSIZE];
             DatagramPacket receivePacket;
             ByteBuffer ack = ByteBuffer.wrap(new byte[ACKSIZE]);
+            boolean oneTime = true;
+            int lastPacket = 0;
             
             try (FileOutputStream fout = new FileOutputStream(this.filename)) {
                 while (true) {
@@ -128,6 +131,17 @@ public class Receiver {
                     int packetNum = header.getInt();
                     int toAck = header.get();
                     
+                    // this is the packet we were expecting
+                    if (lastPacket == packetNum) {
+                        lastPacket++;
+                    }
+                    else { 
+                        PrintUtil.debugln("Packet was not the expected packet", this.verbose);
+                        // send ack but don't write out to the file
+                        SendAck(toAck, ack, connectionId, numPacketsReceived, receivePacket);
+                        continue;
+                    }
+                    
                     // print out the parts of the header
                     PrintUtil.debugln(
                         String.format("connectionId: %d, bytesReceived: %d, packetNum: %d, toAck: %d",
@@ -140,23 +154,14 @@ public class Receiver {
                     fout.write(payload);
                     fout.flush();
                     
-                    
                     numPacketsReceived++;
                     
-                    if (toAck == 1) {
-                        ack.clear();
-                        ack.putInt(connectionId);
-                        ack.putInt(numPacketsReceived);
-                        
-                        for (byte b : ack.array()) {
-                            PrintUtil.debug("" + b + " ", this.verbose);
-                        }
-                        PrintUtil.debugln(this.verbose);
-                        
-                        // send ack
-                        PrintUtil.debugln("Sending ack", this.verbose);
-                        UdpSend(ack.array(), receivePacket.getAddress(), receivePacket.getPort());
+                    if (oneTime && packetNum == 1) {
+                        oneTime = false;
+                        continue;
                     }
+                    
+                    SendAck(toAck, ack, connectionId, numPacketsReceived, receivePacket);
                     
                     
                     // we've received the whole file if we get a packet that's smaller than packetsize
@@ -173,6 +178,23 @@ public class Receiver {
         }
         
         PrintUtil.debugln("File received", this.verbose);
+    }
+    
+    private void SendAck(int toAck, ByteBuffer ack, int connectionId, int numPacketsReceived, DatagramPacket receivePacket) {
+        if (toAck == 1) {
+            ack.clear();
+            ack.putInt(connectionId);
+            ack.putInt(numPacketsReceived);
+            
+            for (byte b : ack.array()) {
+                PrintUtil.debug("" + b + " ", this.verbose);
+            }
+            PrintUtil.debugln(this.verbose);
+            
+            // send ack
+            PrintUtil.debugln("Sending ack", this.verbose);
+            UdpSend(ack.array(), receivePacket.getAddress(), receivePacket.getPort());
+        }
     }
     
     private void UdpSend(byte[] buffer, InetAddress address, int port) {

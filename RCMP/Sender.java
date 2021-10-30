@@ -5,8 +5,9 @@
 * Homework 4: Reliable FTP Using UDP
 *
 * Sender client will send a file to the receiver
+* Implements a reliable file transfer protocol using UDP
 * 
-* Usage: java Sender.java java Sender.java --hostname <ip address/hostname> --port <port> --filename <file name>
+* Usage: java Sender.java --destination <ip address/hostname> --port <port> --filename <file name>
 */
 
 import java.io.IOException;
@@ -20,11 +21,13 @@ import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.Random;
 import java.nio.ByteBuffer;
+import java.io.RandomAccessFile;
 
 public class Sender {
     public final static int PAYLOADSIZE = 1450;
@@ -109,6 +112,7 @@ public class Sender {
     public void initUdp() {
         try {
             this.Udp = new DatagramSocket();
+            this.Udp.setSoTimeout(1000);
         }
         catch (SocketException se) {
             PrintUtil.debugln("Error opening UDP socket", this.verbose);
@@ -119,7 +123,7 @@ public class Sender {
         
     public static void displayUsageErrorMessage() {
         PrintUtil.fault(
-            "Usage: java Sender.java --hostname <ip address/hostname> --port <port> --filename <file name>\n" +
+            "Usage: java Sender.java --destination <ip address/hostname> --port <port> --filename <file name>\n" +
             "Also supported are -v (--verbose) and -prog (--progress) to show the progress bar"
         );
     }
@@ -147,7 +151,7 @@ public class Sender {
                 // init vars for reading in, sending, and receiving
                 
                 // ack
-                FileInputStream fin = new FileInputStream(file);
+                RandomAccessFile fin = new RandomAccessFile(file, "r");
                 byte[] ackBuffer = new byte[ACKSIZE];
                 ByteBuffer ackWrapper = ByteBuffer.wrap(ackBuffer);
                 DatagramPacket ackPacket;
@@ -159,7 +163,8 @@ public class Sender {
                 
                 // tracking/header vars
                 int chunkLen = 0;
-                int amountSent = 0;
+                int bytesSent = 0;
+                int bytesAcked = 0;
                 int packetsSent = 0;
                 int connectionId = new Random().nextInt(Integer.MAX_VALUE);
                 int lastAckedPacket = 0;
@@ -167,9 +172,15 @@ public class Sender {
                 int gap = 0;
                 byte toAck = 1;
                 
+                boolean resend = false;
+                int resendCount = 0;
+                
                 while (true) {
                     
-                    toAck = (byte) (packetsSent == gap ? 1 : 0);
+                    if (!resend)
+                        toAck = (byte) (packetsSent == gap ? 1 : 0);
+                    else
+                        toAck = 1;
                     
                     packet.clear();
                     
@@ -192,7 +203,7 @@ public class Sender {
                     
                     // put the header in the packet
                     packet.putInt(connectionId);
-                    packet.putInt(amountSent);
+                    packet.putInt(bytesSent);
                     packet.putInt(packetsSent);
                     packet.put(toAck);
                     // put chunk of file into packet
@@ -208,23 +219,53 @@ public class Sender {
                     packetsSent++;
                     
                     // update the progress bar
-                    amountSent += chunkLen;
-                    PrintUtil.printProgress(startTime, this.fileSize, amountSent, this.progress);
-                    
+                    bytesSent += chunkLen;
+                    PrintUtil.printProgress(startTime, this.fileSize, bytesSent, this.progress);
                     
                     PrintUtil.debugln(String.format("toAck: %d, gap: %d, gapCounter: %d, pcktsSent: %d", toAck, gap, gapCounter, packetsSent), this.verbose);
                     
                     int rcvdConnId = 0;
                     // wait for an ack packet if there's still  more to
                     if (toAck == 1) {
-                        // make sure that we receive an ack for what we want in order to go on
+                        // make sure that we receive an ack for our connection order to go on
                         while (rcvdConnId != connectionId) {
                             ackWrapper.clear();
                             
                             // receive the ack
                             PrintUtil.debugln("Waiting for ack", this.verbose);
-                            ackPacket = new DatagramPacket(ackBuffer, ACKSIZE);
-                            this.Udp.receive(ackPacket);
+                            try {
+                                ackPacket = new DatagramPacket(ackBuffer, ACKSIZE);
+                                this.Udp.receive(ackPacket);
+                            }
+                            // we've timed out waiting for a packet!
+                            catch (SocketTimeoutException sTO) {
+                                
+                                PrintUtil.debugln("Socket timeout!", this.verbose);
+                                
+                                // reset the gap
+                                gap = gapCounter = 0;
+                                
+                                // we only know that we have sent over lastAckedPacket packets successfully, same with bytes
+                                packetsSent = lastAckedPacket;
+                                bytesSent = bytesAcked;
+                                
+                                // we need to seek backwards in the file however may bytes we sent out but didn't get acked
+                                if (!resend) { // we only need to do that once
+                                    fin.seek(bytesAcked);
+                                }
+                                
+                                // if the this isn't the first time we're resending this packet, increase the count.
+                                if (resend)
+                                    resendCount++;
+                                resend = true;
+                                
+                                // exit program if receiver just isn't responding...
+                                if (resendCount > 9) {
+                                    PrintUtil.fault("Receiver not responding!");
+                                }
+                                
+                                break; // go back to the top of the sending function to try again
+                            }
     
                             // print out ack (debug)
                             PrintUtil.debug("Ack: ", this.verbose);
@@ -236,7 +277,6 @@ public class Sender {
                             // check if the connection id is ok
                             if (!(ackWrapper.getInt() == connectionId)) { // this gets BufferUnderflow exception even though there is stuff in the buffer.
                                 PrintUtil.debugln("Ack packet not from same connection", this.verbose);
-                                gap = gapCounter = 0;
                                 continue;
                             }
                             
@@ -250,8 +290,12 @@ public class Sender {
                                 continue;
                             }
                             
+                            // we've successfully acked this packet
+                            bytesAcked += chunkLen;
+                            resend = false;
+                            
                             // printing ack messes up progbar
-                            if (!this.progress) PrintUtil.println("ACK " + lastAckedPacket);
+                            if (!this.progress) PrintUtil.println("ACK " + (lastAckedPacket - 1));
                             
                             gapCounter++;
                             gap += gapCounter;
