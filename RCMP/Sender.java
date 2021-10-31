@@ -250,6 +250,7 @@ public class Sender {
                                 
                                 // we need to seek backwards in the file however may bytes we sent out but didn't get acked
                                 if (!resend) { // we only need to do that once
+                                    PrintUtil.debugln("" + bytesAcked, this.verbose);
                                     fin.seek(bytesAcked);
                                 }
                                 
@@ -289,8 +290,8 @@ public class Sender {
                                 gap = gapCounter = 0;
                                 continue;
                             }
-                            
                             // we've successfully acked this packet
+                            
                             bytesAcked = writePosition - chunkLen;
                             resend = false;
                             timedOut = false;
