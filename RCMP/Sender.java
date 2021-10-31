@@ -260,7 +260,7 @@ public class Sender {
                                 
                                 // exit program if receiver just isn't responding...
                                 if (resendCount > 5 && lastAckedPacket == totalNumPackets) {
-                                    PrintUtil.fault("Receiver not responding!");
+                                    PrintUtil.fault("File transfer success unknown");
                                 }
                                 
                                 break; // go back to the top of the sending function to try again
