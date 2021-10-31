@@ -214,18 +214,18 @@ public class Sender {
                     
                     if (toAck == 1) ackPacketID = packetID;
                     packetsSentSinceReset++;
-                                        
-                    // update the progress bar
+                    
                     writePosition += chunkLen;
+                    
+                    // update the progress bar
                     PrintUtil.printProgress(startTime, this.fileSize, writePosition, this.progress);
                     
                     PrintUtil.debugln(String.format("toAck: %d, gap: %d, gapCounter: %d, pcktsSentSinceReset: %d, pcktID: %d, bytesInPayload %d, writePos: %d", toAck, gap, gapCounter, packetsSentSinceReset, packetID, chunkLen, writePosition), this.verbose);
                     
-                    int rcvdConnId = 0;
                     // wait for an ack packet if there's still  more to
                     if (toAck == 1) {
                         // make sure that we receive an ack for our connection order to go on
-                        while (rcvdConnId != connectionId) {
+                        while (true) {
                             ackWrapper.clear();
                             
                             // receive the ack
@@ -281,15 +281,16 @@ public class Sender {
                                 continue;
                             }
                             
-                            // ackWrapper wraps ackBuffer
-                            lastAckedPacket = ackWrapper.getInt();
-                            
                             // check to make sure the last acked packet is the one we were expecting to receive an ack for
-                            if (lastAckedPacket != ackPacketID) {
+                            if (ackWrapper.getInt() != ackPacketID) {
                                 PrintUtil.debugln("Last acked packet not in order!", this.verbose);
                                 gap = gapCounter = 0;
                                 continue;
                             }
+
+                            // ackWrapper wraps ackBuffer
+                            lastAckedPacket = ackWrapper.getInt();
+
                             // we've successfully acked this packet
                             
                             bytesAcked = writePosition - chunkLen;
