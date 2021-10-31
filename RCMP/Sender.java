@@ -276,20 +276,22 @@ public class Sender {
                             PrintUtil.debugln(this.verbose);
                             
                             // check if the connection id is ok
-                            if (!(ackWrapper.getInt() == connectionId)) { // this gets BufferUnderflow exception even though there is stuff in the buffer.
+                            if (!(ackWrapper.getInt() == connectionId)) { 
                                 PrintUtil.debugln("Ack packet not from same connection", this.verbose);
                                 continue;
                             }
                             
+                            int recvAckID = ackWrapper.getInt();
+
                             // check to make sure the last acked packet is the one we were expecting to receive an ack for
-                            if (ackWrapper.getInt() != ackPacketID) {
+                            if (recvAckID != ackPacketID) {
                                 PrintUtil.debugln("Last acked packet not in order!", this.verbose);
                                 gap = gapCounter = 0;
                                 continue;
                             }
 
                             // ackWrapper wraps ackBuffer
-                            lastAckedPacket = ackWrapper.getInt();
+                            lastAckedPacket = recvAckID;
 
                             // we've successfully acked this packet
                             
