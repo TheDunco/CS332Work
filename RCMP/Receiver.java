@@ -147,7 +147,15 @@ public class Receiver {
                             bytesAcked = bytesReceived;
                             PrintUtil.debugln(String.format("bytesAcked: %d, bytesReceived: %d", bytesAcked, bytesReceived), this.verbose);
                         }
+                        fout.seek(bytesReceived);
                     }
+                    // reset if sender is still sending old packets
+                    else if (packetID < lastPacket) {
+                        lastPacket = packetID;
+                        fout.seek(bytesReceived);
+                        continue;
+                    }
+                    // receiver received wrong packet aka a packet was dropped
                     else {
                         PrintUtil.debugln("Dropping packet: not the expected packet", this.verbose);
                         // send ack but don't write out to the file
@@ -169,17 +177,16 @@ public class Receiver {
                     
                     PrintUtil.debugln("\nGood packet, writing to file...", this.verbose);
                     
+                    SendAck(toAck, ack, connectionId, ackPacketID, receivePacket);
+                    
                     fout.write(payload);
-                    // fout.flush();
                     
                     // print out the parts of the header
                     PrintUtil.debugln(
                         String.format("connectionId: %d, bytesReceived: %d, packetNum: %d, toAck: %d\n\n",
-                                       connectionId,     bytesReceived,     packetID,     toAck), 
+                        connectionId,     bytesReceived,     packetID,     toAck), 
                         this.verbose
                     );
-                    
-                    SendAck(toAck, ack, connectionId, ackPacketID, receivePacket);
                     
                     // we've received the whole file if we get a packet that's smaller than packetsize
                     if (receivePacket.getLength() < FULLPCKTSIZE) {
