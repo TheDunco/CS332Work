@@ -133,15 +133,14 @@ public class Receiver {
                     int packetID = header.getInt();
                     int toAck = header.get();
                     
-                    // drop packet 95 (for testing)
-                    if (oneTime && packetID == 95) {
-                        oneTime = false;
-                        continue;
-                    }
+                    // // drop packet 95 (for testing)
+                    // if (oneTime && packetID == 95) {
+                    //     oneTime = false;
+                    //     continue;
+                    // }
                     
                     // this is the packet we were expecting
                     if (lastPacket == packetID) {
-                        PrintUtil.debugln(String.format("AYAYAYAYAYA %d", lastPacket), this.verbose);
                         lastPacket++;
                         if (toAck == 1) {
                             ackPacketID = packetID;
@@ -150,7 +149,6 @@ public class Receiver {
                         }
                     }
                     else {
-                        PrintUtil.debugln(String.format("AYAYAYAYAYAPART2PART2 %d", lastPacket), this.verbose);
                         PrintUtil.debugln("Dropping packet: not the expected packet", this.verbose);
                         // send ack but don't write out to the file
                         PrintUtil.debugln(
@@ -170,8 +168,6 @@ public class Receiver {
                     
                     PrintUtil.debugln("\nGood packet, writing to file...", this.verbose);
                     
-                    PrintUtil.debugln(String.format("AYAYAYAYAYAPART2 %d", lastPacket), this.verbose);
-
                     fout.write(payload);
                     // fout.flush();
                     
