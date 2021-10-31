@@ -187,6 +187,7 @@ public class Sender {
                         
                     packet.clear();
                     
+                    PrintUtil.debugln("bytesAcked: " + bytesAcked, this.verbose);
                     chunkLen = fin.read(chunk); // read in a chunk of the file
                     
                     if (chunkLen == -1)  break; // we've reached the end of the file
