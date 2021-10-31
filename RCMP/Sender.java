@@ -249,10 +249,10 @@ public class Sender {
                                 writePosition = bytesAcked;
                                 
                                 // we need to seek backwards in the file however may bytes we sent out but didn't get acked
-                                if (!resend) { // we only need to do that once
-                                    PrintUtil.debugln("" + bytesAcked, this.verbose);
-                                    fin.seek(bytesAcked);
-                                }
+                                // if (!resend) { // we only need to do that once
+                                // }
+                                PrintUtil.debugln("" + bytesAcked, this.verbose);
+                                fin.seek(bytesAcked);
                                 
                                 // if the this isn't the first time we're resending this packet, increase the count.
                                 if (resend)
