@@ -160,9 +160,8 @@ public class Receiver {
                         lastPacket = ackPacketID;
                         fout.seek(bytesAcked);
                         
-                        if (toAck == 1) {
-                            SendAck(toAck, ack, connectionId, ackPacketID, receivePacket);
-                        }
+                        SendAck(toAck, ack, connectionId, ackPacketID, receivePacket);
+                        
                         continue;
                     }
                     
