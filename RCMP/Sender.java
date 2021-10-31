@@ -163,9 +163,10 @@ public class Sender {
                 
                 // tracking/header vars
                 int chunkLen = 0;
-                int bytesSent = 0;
+                int writePosition = 0; // keeps track of where the receiver should write to
                 int bytesAcked = 0;
-                int packetsSent = 0;
+                int ackPacketID = 0;
+                int packetID = 0;
                 int connectionId = new Random().nextInt(Integer.MAX_VALUE);
                 int lastAckedPacket = 0;
                 int gapCounter = 0;
@@ -173,6 +174,7 @@ public class Sender {
                 byte toAck = 1;
                 int packetsSentSinceReset = 0;
                 boolean resend = false;
+                boolean timedOut = false;
                 int resendCount = 0;
                 
                 while (true) {
@@ -189,33 +191,34 @@ public class Sender {
                     if (chunkLen == -1)  break; // we've reached the end of the file
                     
                     // ack the last packet
-                    if (packetsSent == totalNumPackets) {
+                    if (packetID == totalNumPackets) {
                         toAck = 1;
                     }
                     
                     // put the header in the packet
                     packet.putInt(connectionId);
-                    packet.putInt(bytesSent);
-                    packet.putInt(packetsSent);
+                    packet.putInt(writePosition);
+                    packet.putInt(packetID);
                     packet.put(toAck);
                     // put chunk of file into packet
                     packet.put(Arrays.copyOfRange(chunk, 0, chunkLen));
-                    
+
                     // for (byte b : Arrays.copyOfRange(packet.array(), 0, chunkLen)) {
                     //     PrintUtil.debug("" + b + ' ', this.verbose);
                     // }
                     
                     // send over however much we read in
                     UdpSend(Arrays.copyOfRange(packet.array(), 0, chunkLen + HEADERSIZE));
+                    PrintUtil.debugln(String.format("%d", writePosition), this.verbose);
                     
-                    packetsSent++;
+                    if (toAck == 1) ackPacketID = packetID;
                     packetsSentSinceReset++;
                                         
                     // update the progress bar
-                    bytesSent += chunkLen;
-                    PrintUtil.printProgress(startTime, this.fileSize, bytesSent, this.progress);
+                    writePosition += chunkLen;
+                    PrintUtil.printProgress(startTime, this.fileSize, writePosition, this.progress);
                     
-                    PrintUtil.debugln(String.format("toAck: %d, gap: %d, gapCounter: %d, pcktsSentSinceReset: %d, pcktsSent: %d, bytesInPayload %d", toAck, gap, gapCounter, packetsSentSinceReset - 1, packetsSent - 1, chunkLen), this.verbose);
+                    PrintUtil.debugln(String.format("toAck: %d, gap: %d, gapCounter: %d, pcktsSentSinceReset: %d, pcktID: %d, bytesInPayload %d", toAck, gap, gapCounter, packetsSentSinceReset, packetID, chunkLen), this.verbose);
                     
                     int rcvdConnId = 0;
                     // wait for an ack packet if there's still  more to
@@ -234,13 +237,15 @@ public class Sender {
                             catch (SocketTimeoutException sTO) {
                                 
                                 PrintUtil.debugln("Socket timeout!", this.verbose);
+
+                                timedOut = true;
                                 
                                 // reset the gap
                                 gap = gapCounter = packetsSentSinceReset = 0;
                                 
                                 // we only know that we have sent over lastAckedPacket packets successfully, same with bytes
-                                packetsSent = lastAckedPacket;
-                                bytesSent = bytesAcked;
+                                packetID = lastAckedPacket;
+                                writePosition = bytesAcked;
                                 
                                 // we need to seek backwards in the file however may bytes we sent out but didn't get acked
                                 if (!resend) { // we only need to do that once
@@ -250,6 +255,7 @@ public class Sender {
                                 // if the this isn't the first time we're resending this packet, increase the count.
                                 if (resend)
                                     resendCount++;
+
                                 resend = true;
                                 
                                 // exit program if receiver just isn't responding...
@@ -277,15 +283,16 @@ public class Sender {
                             lastAckedPacket = ackWrapper.getInt();
                             
                             // check to make sure the last acked packet is the one we were expecting to receive an ack for
-                            if (lastAckedPacket != packetsSent) {
+                            if (lastAckedPacket != ackPacketID) {
                                 PrintUtil.debugln("Last acked packet not in order!", this.verbose);
                                 gap = gapCounter = 0;
                                 continue;
                             }
                             
                             // we've successfully acked this packet
-                            bytesAcked += chunkLen;
+                            bytesAcked = writePosition - chunkLen;
                             resend = false;
+                            timedOut = false;
                             
                             // printing ack messes up progbar
                             if (!this.progress) PrintUtil.println("ACK " + (lastAckedPacket));
@@ -300,6 +307,7 @@ public class Sender {
                             break;
                         }
                     }
+                    if (!timedOut) packetID++;
                 }
                 
                 fin.close();
@@ -443,5 +451,3 @@ class PrintUtil {
         }
     }
 }
-
-

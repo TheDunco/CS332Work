@@ -11,6 +11,7 @@
 */
 
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -106,7 +107,7 @@ public class Receiver {
     private void receiveFile() {
         
         PrintUtil.debugln("Receiving file...", this.verbose);
-        int numPacketsReceived = 0;
+        int ackPacketID = 0;
         try {
             // reference: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
             byte[] receiveData = new byte[FULLPCKTSIZE];
@@ -114,8 +115,9 @@ public class Receiver {
             ByteBuffer ack = ByteBuffer.wrap(new byte[ACKSIZE]);
             boolean oneTime = true;
             int lastPacket = 0;
+            int bytesAcked = 0;
             
-            try (FileOutputStream fout = new FileOutputStream(this.filename)) {
+            try (RandomAccessFile fout = new RandomAccessFile(this.filename, "rw")) {
                 while (true) {
                     // receive data
                     receivePacket = new DatagramPacket(receiveData, FULLPCKTSIZE);
@@ -128,43 +130,59 @@ public class Receiver {
                     
                     int connectionId = header.getInt();
                     int bytesReceived = header.getInt();
-                    int packetNum = header.getInt();
+                    int packetID = header.getInt();
                     int toAck = header.get();
                     
                     // drop packet 95 (for testing)
-                    if (oneTime && packetNum == 95) {
+                    if (oneTime && packetID == 95) {
                         oneTime = false;
                         continue;
                     }
                     
                     // this is the packet we were expecting
-                    if (lastPacket == packetNum) {
+                    if (lastPacket == packetID) {
+                        PrintUtil.debugln(String.format("AYAYAYAYAYA %d", lastPacket), this.verbose);
                         lastPacket++;
+                        if (toAck == 1) {
+                            ackPacketID = packetID;
+                            bytesAcked = bytesReceived;
+                            PrintUtil.debugln(String.format("bytesAcked: %d, bytesReceived: %d", bytesAcked, bytesReceived), this.verbose);
+                        }
                     }
-                    else { 
+                    else {
+                        PrintUtil.debugln(String.format("AYAYAYAYAYAPART2PART2 %d", lastPacket), this.verbose);
                         PrintUtil.debugln("Dropping packet: not the expected packet", this.verbose);
                         // send ack but don't write out to the file
+                        PrintUtil.debugln(
+                            String.format("connectionId: %d, bytesReceived: %d, packetNum: %d, toAck: %d",
+                                           connectionId,     bytesReceived,     packetID,     toAck), 
+                            this.verbose
+                        );
+                        
+                        lastPacket = ackPacketID;
+                        fout.seek(bytesAcked);
+                        
                         if (toAck == 1) {
-                            SendAck(toAck, ack, connectionId, numPacketsReceived, receivePacket);
+                            SendAck(toAck, ack, connectionId, ackPacketID, receivePacket);
                         }
                         continue;
                     }
                     
                     PrintUtil.debugln("\nGood packet, writing to file...", this.verbose);
                     
+                    PrintUtil.debugln(String.format("AYAYAYAYAYAPART2 %d", lastPacket), this.verbose);
+
                     fout.write(payload);
-                    fout.flush();
-                    
-                    numPacketsReceived++;
+                    // fout.flush();
                     
                     // print out the parts of the header
                     PrintUtil.debugln(
-                        String.format("connectionId: %d, bytesReceived: %d, packetNum: %d, toAck: %d",
-                                       connectionId,     bytesReceived,     packetNum,     toAck), 
+                        String.format("connectionId: %d, bytesReceived: %d, packetNum: %d, toAck: %d\n\n",
+                                       connectionId,     bytesReceived,     packetID,     toAck), 
                         this.verbose
                     );
                     
-                    SendAck(toAck, ack, connectionId, numPacketsReceived, receivePacket);
+                    SendAck(toAck, ack, connectionId, ackPacketID, receivePacket);
                     
                     // we've received the whole file if we get a packet that's smaller than packetsize
                     if (receivePacket.getLength() < FULLPCKTSIZE) {
