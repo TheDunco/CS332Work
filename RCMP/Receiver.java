@@ -116,7 +116,6 @@ public class Receiver {
             boolean oneTime = true;
             int lastPacket = 0;
             int bytesAcked = 0;
-            boolean dropped = false;
             
             try (RandomAccessFile fout = new RandomAccessFile(this.filename, "rw")) {
                 while (true) {
@@ -141,11 +140,7 @@ public class Receiver {
                     // }
                     
                     // this is the packet we were expecting
-                    if (dropped) {
-                        SendAck(toAck, ack, connectionId, ackPacketID, receivePacket);
-                        dropped = false;
-                    }
-                    else if (lastPacket == packetID) {
+                    if (lastPacket == packetID) {
                         lastPacket++;
                         if (toAck == 1) {
                             ackPacketID = packetID;
@@ -162,12 +157,12 @@ public class Receiver {
                             this.verbose
                         );
                         
-                        // we've lost a packet, seek back to where we know we were
-                        dropped = true;
                         lastPacket = ackPacketID;
                         fout.seek(bytesAcked);
                         
-                        SendAck(toAck, ack, connectionId, ackPacketID, receivePacket);
+                        if (toAck == 1) {
+                            SendAck(toAck, ack, connectionId, ackPacketID, receivePacket);
+                        }
                         
                         continue;
                     }
