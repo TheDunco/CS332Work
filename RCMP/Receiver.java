@@ -117,7 +117,16 @@ public class Receiver {
             int lastPacket = 0;
             int bytesAcked = 0;
             
+            try {
+                // remove whatever old file there may have been
+                File clearFile = new File(this.filename);
+                clearFile.delete();
+            }
+            // allow creation of new file
+            catch (Exception e) {}
+            
             try (RandomAccessFile fout = new RandomAccessFile(this.filename, "rw")) {
+                
                 while (true) {
                     // receive data
                     receivePacket = new DatagramPacket(receiveData, FULLPCKTSIZE);
