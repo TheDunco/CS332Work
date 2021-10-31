@@ -211,7 +211,6 @@ public class Sender {
                     
                     // send over however much we read in
                     UdpSend(Arrays.copyOfRange(packet.array(), 0, chunkLen + HEADERSIZE));
-                    PrintUtil.debugln(String.format("%d", writePosition), this.verbose);
                     
                     if (toAck == 1) ackPacketID = packetID;
                     packetsSentSinceReset++;
