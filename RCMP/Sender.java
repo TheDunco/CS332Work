@@ -191,7 +191,7 @@ public class Sender {
                     if (chunkLen == -1)  break; // we've reached the end of the file
                     
                     // ack the last packet
-                    if (packetID == totalNumPackets) {
+                    if (packetID == totalNumPackets + 1) {
                         toAck = 1;
                     }
                     
