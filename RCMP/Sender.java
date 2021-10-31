@@ -218,7 +218,7 @@ public class Sender {
                     writePosition += chunkLen;
                     PrintUtil.printProgress(startTime, this.fileSize, writePosition, this.progress);
                     
-                    PrintUtil.debugln(String.format("toAck: %d, gap: %d, gapCounter: %d, pcktsSentSinceReset: %d, pcktID: %d, bytesInPayload %d", toAck, gap, gapCounter, packetsSentSinceReset, packetID, chunkLen), this.verbose);
+                    PrintUtil.debugln(String.format("toAck: %d, gap: %d, gapCounter: %d, pcktsSentSinceReset: %d, pcktID: %d, bytesInPayload %d, writePos: %d", toAck, gap, gapCounter, packetsSentSinceReset, packetID, chunkLen, writePosition), this.verbose);
                     
                     int rcvdConnId = 0;
                     // wait for an ack packet if there's still  more to
