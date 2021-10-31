@@ -259,7 +259,7 @@ public class Sender {
                                 resend = true;
                                 
                                 // exit program if receiver just isn't responding...
-                                if (resendCount > 5) {
+                                if (resendCount > 5 && lastAckedPacket == totalNumPackets) {
                                     PrintUtil.fault("Receiver not responding!");
                                 }
                                 
