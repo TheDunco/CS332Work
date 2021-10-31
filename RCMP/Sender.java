@@ -147,6 +147,7 @@ public class Sender {
                 // number of packets will be size of file / PACKETSIZE rounded up
                 int totalNumPackets = (int)(((double)this.fileSize / (double)PAYLOADSIZE) + 0.5);
                 PrintUtil.debugln("Excpected # of packets: " + totalNumPackets, this.verbose);
+                PrintUtil.debugln("File size: " + file.length(), this.verbose);
                 
                 // init vars for reading in, sending, and receiving
                 
