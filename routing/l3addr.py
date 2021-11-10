@@ -15,8 +15,13 @@ class L3Addr:
             parts = val.split('.')
             if len(parts) != 4:
                 raise ValueError("str val must have the form x.y.z.w")
-            # TODO: convert parts (list of strings) into one integer value in variable res
-            self._as_int = res
+            
+            # convert parts (list of strings) into one integer value in variable res
+            # convert to correct sequence of binary as a string
+            res = '{0:08b}'.format(int(parts[0])) + '{0:08b}'.format(int(parts[1])) + '{0:08b}'.format(int(parts[2])) + '{0:08b}'.format(int(parts[3]))
+            
+            # convert that base 2 string representation to an int
+            self._as_int = int(res, base = 2)
         elif isinstance(val, int):
             if val > 2 ** 32 - 1:
                 raise ValueError("val does not fit in 32 bits")
@@ -39,12 +44,17 @@ class L3Addr:
     def network_part_as_int(self, mask_numbits: int) -> int:
         mask = maskToInt(mask_numbits)
         return self._as_int & mask
+        
+    def host_part_as_int(self, mask_numbits: int) -> int:
+        mask = maskToInt(mask_numbits)
+        mask = ~mask # flip all bits
+        return self._as_int & mask
 
     def network_part_as_L3Addr(self, mask_numbits: int):
         return L3Addr(self.network_part_as_int(mask_numbits))
 
     def host_part_as_L3Addr(self, mask_numbits: int):
-        # TODO
+        return L3Addr(self.host_part_as_int(mask_numbits))
 
     def __eq__(self, other):
         return self._as_int == other.as_int()
@@ -53,12 +63,16 @@ class L3Addr:
         return f'{self._as_str}'
 
     def is_bcast(self) -> bool:
-        # TODO
+        return self.as_str() == "255.255.255.255"
+        
+        
 
 
 if __name__ == "__main__":
     a = L3Addr("10.11.12.13")
+    b = L3Addr("255.255.255.255")
     assert a.as_str() == "10.11.12.13"
+    print(a.as_int())
     assert a.as_int() == 168496141
 
     try:
@@ -77,5 +91,6 @@ if __name__ == "__main__":
             0b0000_1010_0000_0000_0000_0000_0000_0000)
 
     assert a.host_part_as_L3Addr(16).as_str() == "0.0.12.13"
+    assert b.is_bcast();
 
     print('L3Addr: all tests passed!')
