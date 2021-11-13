@@ -1,6 +1,8 @@
 from l3addr import L3Addr
 from icecream import ic
 
+from l3interface import L3Interface
+
 ic.disable()
 
 
@@ -25,12 +27,17 @@ class RoutingTable:
 
         is_local = nexthop.as_str() == "0.0.0.0"
 
-        # Make sure the netaddr passed in is actually a network address -- host part
-        # is all 0s.
-        # TODO: implement the code for the comment above.
+        # Make sure the netaddr passed in is actually a network address -- host part is all 0s.
+        #! TODO: implement the code for the comment above.
+        if netaddr.host_part_as_int(mask_numbits).__str__() == 0: 
+            return
 
         # Create a RoutingTableEntry and append to self._entries.
-        # TODO: implement the comment above.
+        #! TODO: implement the comment above.
+        intr = L3Interface(iface_num, netaddr.as_str(), mask_numbits)
+        isLocal = intr.on_same_network(nexthop)
+        
+        self._entries.append(RoutingTableEntry(iface_num, netaddr, mask_numbits, nexthop, isLocal))
 
     def add_route(self, ifaces: list, netaddr: L3Addr, mask_numbits: int, nexthop: L3Addr):
         '''Add a route. Indicate a local route (no nexthop) by passing L3Addr("0.0.0.0") for nexthop'''
