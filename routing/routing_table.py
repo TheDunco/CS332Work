@@ -3,7 +3,7 @@ from icecream import ic
 
 from l3interface import L3Interface
 
-ic.disable()
+# ic.disable()
 
 
 class RoutingTableEntry:
@@ -20,6 +20,7 @@ class RoutingTable:
 
     def __init__(self):
         self._entries = []
+        ic(self._entries)
 
     def add_iface_route(self, iface_num: int, netaddr: L3Addr, mask_numbits: int, nexthop: L3Addr):
         '''Add a route out the given interface.
@@ -60,7 +61,8 @@ class RoutingTable:
         intr = L3Interface(out_iface, netaddr.as_str(), mask_numbits)
         isLocal = intr.on_same_network(nexthop)
 
-        # TODO: Create routing table entry and add to list, similar to previous method.
+        ic("Adding route")
+        #! Create routing table entry and add to list, similar to previous method.
         self._entries.append(RoutingTableEntry(out_iface.get_number(), netaddr, mask_numbits, nexthop, isLocal))
     def __str__(self):
         ret = f"RoutingTable:\n"
@@ -102,7 +104,6 @@ def num_matching_prefix_bits(addr1: L3Addr, addr2: L3Addr) -> int:
             result += 1
         else: 
             return result
-        
     return result
 
 if __name__ == "__main__":
