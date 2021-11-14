@@ -27,13 +27,11 @@ class RoutingTable:
 
         is_local = nexthop.as_str() == "0.0.0.0"
 
-        # Make sure the netaddr passed in is actually a network address -- host part is all 0s.
-        #! TODO: implement the code for the comment above.
-        if netaddr.host_part_as_int(mask_numbits).__str__() == 0: 
+        #! Make sure the netaddr passed in is actually a network address -- host part is all 0s.
+        if not netaddr.host_part_as_int(mask_numbits) == 0: 
             return
 
-        # Create a RoutingTableEntry and append to self._entries.
-        #! TODO: implement the comment above.
+        #! Create a RoutingTableEntry and append to self._entries.
         intr = L3Interface(iface_num, netaddr.as_str(), mask_numbits)
         isLocal = intr.on_same_network(nexthop)
         
@@ -46,14 +44,24 @@ class RoutingTable:
 
         # TODO: find the iface the nexthop address is accessible through.  raise ValueError if it
         # is not accessible out any interface. Store iface in out_iface.
+        for iface in ifaces:
+            if iface.on_same_network(nexthop): #! if the interface is on the same network as the next hop, it's accessible?
+                out_iface = iface
+        if out_iface == None:
+            raise ValueError("Out iface not found")
 
         ic(str(out_iface))
-        # Make sure the destaddr passed in is actually a network address -- host part
-        # is all 0s.
-        # TODO: implement, just as you did in previous method.
+        #! Make sure the destaddr passed in is actually a network address -- host part is all 0s.
+        if not netaddr.host_part_as_int(mask_numbits) == 0:
+            ic("Not a valid network address!")
+            return
+
+        #! If line 48 is true, then this will always be true. 48 probably wrong
+        intr = L3Interface(out_iface, netaddr.as_str(), mask_numbits)
+        isLocal = intr.on_same_network(nexthop)
 
         # TODO: Create routing table entry and add to list, similar to previous method.
-
+        self._entries.append(RoutingTableEntry(out_iface.get_number(), netaddr, mask_numbits, nexthop, isLocal))
     def __str__(self):
         ret = f"RoutingTable:\n"
         ret += f"netaddr   mask  nexthop   if\n"
@@ -68,7 +76,34 @@ class RoutingTable:
         '''Use longest-prefix-match (LPM) to find and return the best route
         entry for the given dest address'''
         # TODO: return None if no matches (which means no default route)
+        
+        longestMatch = None
+        numLongestMatch = 0
+        for entry in self._entries:
+            # find out how many bits are matching
+            num = num_matching_prefix_bits(entry.destaddr, dest)
+            # if that's more than the previous one, this one is the new longest
+            if num > numLongestMatch:
+                longestMatch = entry
+                numLongestMatch = num
+                
+        if longestMatch == None:
+            return None
+        else:
+            return longestMatch
 
+def num_matching_prefix_bits(addr1: L3Addr, addr2: L3Addr) -> int:
+    result = 0
+    str1 = addr1.as_str()
+    str2 = addr2.as_str()
+    
+    for i in range(0, len(str1)):
+        if str1[i] == str2[i]:
+            result += 1
+        else: 
+            return result
+        
+    return result
 
 if __name__ == "__main__":
     r = RoutingTable()

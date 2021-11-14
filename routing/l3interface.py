@@ -16,7 +16,6 @@ class L3Interface:
         return self._number
 
     def get_netaddr(self) -> L3Addr:
-        #TODO: This is incorrect, need to return the network address where host part is 0
         host_mask = maskToHostMask(self._mask_numbits)
         return L3Addr(self._addr.as_int() & ~host_mask)
 
