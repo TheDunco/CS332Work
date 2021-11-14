@@ -3,6 +3,7 @@ from icecream import ic
 
 from l3interface import L3Interface
 
+ic.enable()
 # ic.disable()
 
 
@@ -20,7 +21,6 @@ class RoutingTable:
 
     def __init__(self):
         self._entries = []
-        ic(self._entries)
 
     def add_iface_route(self, iface_num: int, netaddr: L3Addr, mask_numbits: int, nexthop: L3Addr):
         '''Add a route out the given interface.
@@ -28,15 +28,12 @@ class RoutingTable:
 
         is_local = nexthop.as_str() == "0.0.0.0"
 
-        #! Make sure the netaddr passed in is actually a network address -- host part is all 0s.
-        if not netaddr.host_part_as_int(mask_numbits) == 0: 
-            return
+        # Make sure the netaddr passed in is actually a network address -- host part is all 0s.
+        netaddr = netaddr.network_part_as_L3Addr(mask_numbits)
 
-        #! Create a RoutingTableEntry and append to self._entries.
-        intr = L3Interface(iface_num, netaddr.as_str(), mask_numbits)
-        isLocal = intr.on_same_network(nexthop)
-        
-        self._entries.append(RoutingTableEntry(iface_num, netaddr, mask_numbits, nexthop, isLocal))
+        # Create a RoutingTableEntry and append to self._entries.
+        entry = RoutingTableEntry(iface_num, netaddr, mask_numbits, nexthop, is_local)
+        self._entries.append(entry)
 
     def add_route(self, ifaces: list, netaddr: L3Addr, mask_numbits: int, nexthop: L3Addr):
         '''Add a route. Indicate a local route (no nexthop) by passing L3Addr("0.0.0.0") for nexthop'''
@@ -57,13 +54,9 @@ class RoutingTable:
             ic("Not a valid network address!")
             return
 
-        #! If line 48 is true, then this will always be true. 48 probably wrong
-        intr = L3Interface(out_iface, netaddr.as_str(), mask_numbits)
-        isLocal = intr.on_same_network(nexthop)
-
         ic("Adding route")
         #! Create routing table entry and add to list, similar to previous method.
-        self._entries.append(RoutingTableEntry(out_iface.get_number(), netaddr, mask_numbits, nexthop, isLocal))
+        self._entries.append(RoutingTableEntry(out_iface.get_number(), netaddr, mask_numbits, nexthop, is_local))
     def __str__(self):
         ret = f"RoutingTable:\n"
         ret += f"netaddr   mask  nexthop   if\n"
