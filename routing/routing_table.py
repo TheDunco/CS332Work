@@ -72,19 +72,24 @@ class RoutingTable:
         entry for the given dest address'''
         # TODO: return None if no matches (which means no default route)
         
+        print("New call")
         longestMatch = None
         numLongestMatch = 0
         for entry in self._entries:
             # find out how many bits are matching
-            num = num_matching_prefix_bits(entry.destaddr, dest)
+            num_prefix_bits = num_matching_prefix_bits(entry.destaddr, dest)
+            ic(num_prefix_bits, entry.iface_num, entry.destaddr.as_str())
             # if that's more than the previous one, this one is the new longest
-            if num > numLongestMatch:
+            ic(num_prefix_bits, numLongestMatch)
+            if num_prefix_bits > numLongestMatch:
                 longestMatch = entry
-                numLongestMatch = num
+                numLongestMatch = num_prefix_bits
+                ic(longestMatch.destaddr.as_str(), numLongestMatch)
                 
         if longestMatch == None:
             return None
         else:
+            ic(longestMatch.iface_num, longestMatch.destaddr.as_str())
             return longestMatch
 
 def num_matching_prefix_bits(addr1: L3Addr, addr2: L3Addr) -> int:
