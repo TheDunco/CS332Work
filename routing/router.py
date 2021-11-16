@@ -11,7 +11,8 @@ class Router:
 
     def add_interface(self, iface: L3Interface):
         self._ifaces.append(iface)
-        # TODO: add an interface route to routing table
+        #! TODO: add an interface route to routing table
+        self._routing_table.add_route(self._ifaces, iface.get_netaddr(), iface.get_mask_as_int(), iface.get_addr())
 
     def route_packet(self, pkt: L3Packet, incoming_iface: L3Interface) -> int:
         '''Route the given packet that arrived on the given interface (iface == None
@@ -25,6 +26,22 @@ class Router:
         # If dest addr is one of the interfaces, accept and do not forward.
         # Decrement ttl and if 0, drop.
         # Get best route entry. Return the interface number of best match.
+        
+        #   general bcast          directed bcast
+        if (pkt.dest.is_bcast() or pkt.dest.host_part_as_int == 0):
+            print(f'{pkt} dropped. Broadcast address')
+            return None
+        elif (incoming_iface.on_same_network(pkt.dest)):
+            print(f'{pkt} dropped. On same network')
+            return None
+        
+        for i in self._ifaces:
+            if pkt.dest == i.get_net_addr():
+                print(f'{pkt} accepted, not forwarding')
+                return i.iface_num
+        pkt.ttl -= 1
+        
+        entry = self._routing_table.get_best_route(pkt.dest)
 
         # NOTE: print out what the algorithm is doing just before each return statement.
         # e.g., print(f"{pkt} accepted because dest matches iface {iface.get_number()}")

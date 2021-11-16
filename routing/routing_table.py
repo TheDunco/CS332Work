@@ -3,8 +3,8 @@ from icecream import ic
 
 from l3interface import L3Interface
 
-# ic.enable()
-ic.disable()
+ic.enable()
+# ic.disable()
 
 
 class RoutingTableEntry:
@@ -49,14 +49,14 @@ class RoutingTable:
             raise ValueError("Out iface not found")
 
         ic(str(out_iface))
-        #! Make sure the destaddr passed in is actually a network address -- host part is all 0s.
-        if not netaddr.host_part_as_int(mask_numbits) == 0:
-            ic("Not a valid network address!")
-            return
+        
+        # Make sure the destaddr passed in is actually a network address -- host part is all 0s.
+        netaddr = netaddr.network_part_as_L3Addr(mask_numbits)
 
         ic("Adding route")
         #! Create routing table entry and add to list, similar to previous method.
         self._entries.append(RoutingTableEntry(out_iface.get_number(), netaddr, mask_numbits, nexthop, is_local))
+        
     def __str__(self):
         ret = f"RoutingTable:\n"
         ret += f"netaddr   mask  nexthop   if\n"
@@ -70,14 +70,13 @@ class RoutingTable:
     def get_best_route(self, dest: L3Addr) -> RoutingTableEntry:  # or None
         '''Use longest-prefix-match (LPM) to find and return the best route
         entry for the given dest address'''
-        # TODO: return None if no matches (which means no default route)
-        
         # Find all of the matches
         matches = []
         for entry in self._entries:
             if dest.network_part_as_L3Addr(entry.mask_numbits) == entry.destaddr:
                 matches.append(entry)
         
+        # return None if no matches (which means no default route)
         if matches.__len__() <= 0:
             return None
         
@@ -131,4 +130,4 @@ if __name__ == "__main__":
     # default route
     assert r.get_best_route(L3Addr("192.168.2.1")).iface_num == 1
 
-    print("Routing: all tests passed!")
+    print("Routing table: all tests passed!")
