@@ -3,8 +3,8 @@ from icecream import ic
 
 from l3interface import L3Interface
 
-ic.enable()
-# ic.disable()
+# ic.enable()
+ic.disable()
 
 
 class RoutingTableEntry:
@@ -72,25 +72,26 @@ class RoutingTable:
         entry for the given dest address'''
         # TODO: return None if no matches (which means no default route)
         
-        print("New call")
-        longestMatch = None
-        numLongestMatch = 0
+        # Find all of the matches
+        matches = []
         for entry in self._entries:
-            # find out how many bits are matching
-            num_prefix_bits = num_matching_prefix_bits(entry.destaddr, dest)
-            ic(num_prefix_bits, entry.iface_num, entry.destaddr.as_str())
-            # if that's more than the previous one, this one is the new longest
-            ic(num_prefix_bits, numLongestMatch)
-            if num_prefix_bits > numLongestMatch:
-                longestMatch = entry
-                numLongestMatch = num_prefix_bits
-                ic(longestMatch.destaddr.as_str(), numLongestMatch)
-                
-        if longestMatch == None:
+            if dest.network_part_as_L3Addr(entry.mask_numbits) == entry.destaddr:
+                matches.append(entry)
+        
+        if matches.__len__() <= 0:
             return None
-        else:
-            ic(longestMatch.iface_num, longestMatch.destaddr.as_str())
-            return longestMatch
+        
+        # find the longest out of all of those matches
+        longest_match = None
+        longest_match_num = -1
+        for match in matches:
+            num = num_matching_prefix_bits(match.destaddr, dest)
+            if num > longest_match_num:
+                longest_match_num = num
+                longest_match = match
+                
+        ic(longest_match.iface_num, longest_match.destaddr.as_str())
+        return longest_match
 
 def num_matching_prefix_bits(addr1: L3Addr, addr2: L3Addr) -> int:
     result = 0
