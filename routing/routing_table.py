@@ -3,9 +3,8 @@ from icecream import ic
 
 from l3interface import L3Interface
 
-ic.enable()
-# ic.disable()
-
+# ic.enable()
+ic.disable()
 
 class RoutingTableEntry:
     def __init__(self, iface_num: int, destaddr: L3Addr, mask_numbits: int, nexthop: L3Addr, is_local: bool):

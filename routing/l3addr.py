@@ -66,8 +66,6 @@ class L3Addr:
         return self.as_str() == "255.255.255.255"
         
         
-
-
 if __name__ == "__main__":
     a = L3Addr("10.11.12.13")
     b = L3Addr("255.255.255.255")

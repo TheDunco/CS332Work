@@ -4,7 +4,8 @@ from routing_table import RoutingTable
 from l3interface import L3Interface
 from icecream import ic
 
-ic.enable()
+# ic.enable()
+ic.disable()
 
 class Router:
     def __init__(self):
@@ -13,23 +14,15 @@ class Router:
 
     def add_interface(self, iface: L3Interface):
         self._ifaces.append(iface)
-        #! TODO: add an interface route to routing table
         ic(iface.get_mask_as_int())
+        
+        # add an interface route to routing table
         self._routing_table.add_iface_route(iface.get_number(), iface.get_netaddr(), iface.get_mask(), L3Addr("0.0.0.0"))
 
     def route_packet(self, pkt: L3Packet, incoming_iface: L3Interface) -> int:
         '''Route the given packet that arrived on the given interface (iface == None
         if the packet originated on this device). Return the interface # it was sent out,
         or None, if dropped or accepted to be processed on this host.'''
-
-        # TODO: implement this.
-        # Check the following and drop pkt if any are true:
-        #   bcast packets (including directed bcast)
-        #   dest on same network as packet arrived on: drop
-        # If dest addr is one of the interfaces, accept and do not forward.
-        # Decrement ttl and if 0, drop.
-        # Get best route entry. Return the interface number of best match.
-        
         
         # drop packet if it's a broadcast packet
         if pkt.dest.is_bcast():
@@ -46,7 +39,7 @@ class Router:
             if pkt.dest == iface.get_directed_bcast_addr():
                 print(f'{pkt} dropped. Directed broadcast address')
                 return None
-            # accept the packet to be forwarded to one of the interfaces
+            # accept the packet for one of the interfaces
             if iface.get_addr() == pkt.dest:
                 print(f'{pkt} accepted. Interface: {iface.get_number()}')
                 return None
@@ -55,13 +48,10 @@ class Router:
         
         # drop if ttl is 0 (or somehow less than 0)
         if pkt.ttl <= 0:
-            print(f'{pkt} dropped. Time to live was 0')
+            print(f'{pkt} dropped. TTL: 0')
             return None
         
         entry = self._routing_table.get_best_route(pkt.dest)
-
-        # NOTE: print out what the algorithm is doing just before each return statement.
-        # e.g., print(f"{pkt} accepted because dest matches iface {iface.get_number()}")
 
         print(f'{pkt} routed to interface {entry.iface_num}')
         return entry.iface_num
