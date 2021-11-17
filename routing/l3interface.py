@@ -69,4 +69,4 @@ if __name__ == "__main__":
 
     assert str(iface) == "Iface<1: 10.10.10.2/23>"
 
-    ("All tests passed!")
+    print("All tests passed!")
