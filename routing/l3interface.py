@@ -7,6 +7,7 @@ class L3Interface:
 
     def __init__(self, number: int, addr: str, mask_numbits: int):
         self._number = number
+        ic("interface", mask_numbits)
         self._mask = maskToInt(mask_numbits)
         ic(self._mask)
         self._mask_numbits = mask_numbits
@@ -33,9 +34,9 @@ class L3Interface:
 
     def on_same_network(self, addr: L3Addr) -> bool:
         '''return True if the given addr is on this interface's network.'''
-        if self._addr.network_part_as_int(self._mask_numbits) == addr.network_part_as_int(self._mask_numbits):
-            return True
-        return False
+        # compare the two network parts and return the result
+        # return self._addr.network_part_as_int(self._mask_numbits) == addr.network_part_as_int(self._mask_numbits)
+        return self._addr.network_part_as_L3Addr(self._mask_numbits) == addr.network_part_as_L3Addr(self._mask_numbits)
 
     def get_addr(self):
         return self._addr
@@ -66,4 +67,4 @@ if __name__ == "__main__":
 
     assert str(iface) == "Iface<1: 10.10.10.2/23>"
 
-    print("All tests passed!")
+    ("All tests passed!")

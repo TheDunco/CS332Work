@@ -2,7 +2,9 @@ from l3packet import L3Packet
 from l3addr import L3Addr
 from routing_table import RoutingTable
 from l3interface import L3Interface
+from icecream import ic
 
+ic.enable()
 
 class Router:
     def __init__(self):
@@ -12,7 +14,8 @@ class Router:
     def add_interface(self, iface: L3Interface):
         self._ifaces.append(iface)
         #! TODO: add an interface route to routing table
-        self._routing_table.add_route(self._ifaces, iface.get_netaddr(), iface.get_mask_as_int(), iface.get_addr())
+        ic(iface.get_mask_as_int())
+        self._routing_table.add_iface_route(iface.get_number(), iface.get_netaddr(), iface.get_mask(), L3Addr("0.0.0.0"))
 
     def route_packet(self, pkt: L3Packet, incoming_iface: L3Interface) -> int:
         '''Route the given packet that arrived on the given interface (iface == None
@@ -27,19 +30,33 @@ class Router:
         # Decrement ttl and if 0, drop.
         # Get best route entry. Return the interface number of best match.
         
-        #   general bcast          directed bcast
-        if (pkt.dest.is_bcast() or pkt.dest.host_part_as_int == 0):
+        
+        # drop packet if it's a broadcast packet
+        if pkt.dest.is_bcast():
             print(f'{pkt} dropped. Broadcast address')
             return None
-        elif (incoming_iface.on_same_network(pkt.dest)):
+            
+        # drop packet if it's on the incoming network
+        if incoming_iface.on_same_network(pkt.dest):
             print(f'{pkt} dropped. On same network')
             return None
         
-        for i in self._ifaces:
-            if pkt.dest == i.get_net_addr():
-                print(f'{pkt} accepted, not forwarding')
-                return i.iface_num
+        for iface in self._ifaces:
+            # drop packet if it's a directed broadcast address
+            if pkt.dest == iface.get_directed_bcast_addr():
+                print(f'{pkt} dropped. Directed broadcast address')
+                return None
+            # accept the packet to be forwarded to one of the interfaces
+            if iface.get_addr() == pkt.dest:
+                print(f'{pkt} accepted. Interface: {iface.get_number()}')
+                return None
+                
         pkt.ttl -= 1
+        
+        # drop if ttl is 0 (or somehow less than 0)
+        if pkt.ttl <= 0:
+            print(f'{pkt} dropped. Time to live was 0')
+            return None
         
         entry = self._routing_table.get_best_route(pkt.dest)
 

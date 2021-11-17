@@ -28,6 +28,7 @@ class RoutingTable:
 
         is_local = nexthop.as_str() == "0.0.0.0"
 
+        ic(mask_numbits)
         # Make sure the netaddr passed in is actually a network address -- host part is all 0s.
         netaddr = netaddr.network_part_as_L3Addr(mask_numbits)
 
@@ -39,11 +40,13 @@ class RoutingTable:
         '''Add a route. Indicate a local route (no nexthop) by passing L3Addr("0.0.0.0") for nexthop'''
 
         is_local = nexthop.as_str() == "0.0.0.0"
-
-        # TODO: find the iface the nexthop address is accessible through.  raise ValueError if it
+        
+        # find the iface the nexthop address is accessible through.  raise ValueError if it
         # is not accessible out any interface. Store iface in out_iface.
+        out_iface = None
         for iface in ifaces:
-            if iface.on_same_network(nexthop): #! if the interface is on the same network as the next hop, it's accessible?
+            ic(iface.get_number())
+            if iface.on_same_network(nexthop): # if the interface is on the same network as the next hop, it's accessible
                 out_iface = iface
         if out_iface == None:
             raise ValueError("Out iface not found")
@@ -54,7 +57,6 @@ class RoutingTable:
         netaddr = netaddr.network_part_as_L3Addr(mask_numbits)
 
         ic("Adding route")
-        #! Create routing table entry and add to list, similar to previous method.
         self._entries.append(RoutingTableEntry(out_iface.get_number(), netaddr, mask_numbits, nexthop, is_local))
         
     def __str__(self):
